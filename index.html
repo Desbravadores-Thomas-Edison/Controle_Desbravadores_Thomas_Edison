@@ -22,6 +22,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -96,6 +97,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -146,11 +153,15 @@ var EMOJI={'Leão':'🦁','Panda':'🐼','Tigre':'🐯','Puma':'🐆'};
 function classeIcon(c,sz){
   sz=sz||32;
   if(LOGOS_CLASSES&&LOGOS_CLASSES[c]){
-    var border=c==='Pioneiro'?'border:2px solid #666;border-radius:50%;':'';
-    return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain;'+border+'">';
+    if(c==='Pioneiro'){
+      // Borda visível para o ícone cinza que some no fundo preto
+      return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;border:2px solid #aaa;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'
+        +'<img src="'+LOGOS_CLASSES[c]+'" style="width:100%;height:100%;object-fit:cover"></div>';
+    }
+    return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain;flex-shrink:0">';
   }
   var cor=CLASSE_COR[c]||'#888';
-  return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+cor+';display:inline-flex;align-items:center;justify-content:center;font-size:'+(sz*0.5)+'px">⭐</div>';
+  return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+cor+';display:inline-flex;align-items:center;justify-content:center;font-size:'+(sz*0.5)+'px;flex-shrink:0">⭐</div>';
 }
 
 // ── cabeçalho com scroll horizontal ──────────────────────────
@@ -415,6 +426,43 @@ function toggleRankingVisibilidade(){
   },function(e){alert('Erro ao salvar: '+(e.message||e));});
 }
 
+
+// Calcula horários e gera HTML da agenda
+function calcAgendaHtml(inicio,atividades,compact){
+  function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
+  function toTime(m){return pad(Math.floor(m/60)%24)+':'+pad(m%60);}
+  var cursor=toMin(inicio);
+  var html='';
+  (atividades||[]).forEach(function(a,i){
+    var startTime=toTime(cursor);
+    cursor+=parseInt(a.min)||0;
+    var bg=i%2===0?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.07)';
+    if(compact){
+      html+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 6px;background:'+bg+';border-radius:4px">'
+        +'<span><span style="color:#666;font-size:11px;margin-right:6px">'+startTime+'</span>'+esc(a.nome)+'</span>'
+        +'<span style="color:#4ade80;font-weight:700;flex-shrink:0;margin-left:8px">'+a.min+'min</span></div>';
+    } else {
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:'+bg+';border-radius:6px;margin-bottom:4px">'
+        +'<div style="font-size:13px;font-weight:700;color:#FFC400;flex-shrink:0;width:42px">'+startTime+'</div>'
+        +'<div style="flex:1;font-size:14px">'+esc(a.nome)+'</div>'
+        +'<div style="font-size:13px;color:#888;flex-shrink:0">'+a.min+'min</div>'
+        +'</div>';
+    }
+  });
+  return html;
+}
+
+
+function eyeIcon(visible,sz){
+  sz=sz||18;
+  var col=visible?'#aaa':'#444';
+  if(visible){
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  } else {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  }
+}
+
 function startApp(){
   callAPI('getCtx',{},
     function(ctx){
@@ -455,7 +503,9 @@ function renderRanking() {
     var rankVis=isRankingVisivel();
     html+='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
       +'<button onclick="toggleRankingVisibilidade()" style="background:none;border:1px solid #333;border-radius:8px;color:#aaa;cursor:pointer;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px">'
-      +(rankVis?'👁️ Visível para todos':'🙈 Só para admin')+'</button></div>';
+      +eyeIcon(rankVis,14)
+      +' '+(rankVis?'Visível para todos':'Só para admin')
+      +'</button></div>';;
   }
 
   // Mostrar aviso se ranking está oculto para não-admin
@@ -1084,7 +1134,7 @@ function renderEspecialidades(){
       +'<div style="font-size:12px;color:#aaa">'+membros.length+' membro'+(membros.length!==1?'s':'')+' · '+reqs.length+' requisitos</div>'
       +'</div>'
       // Botão olho (só admin): controla visibilidade para não-instrutores
-      +(isAdmin?'<button onclick="event.stopPropagation();toggleClasseVisibilidade(this.dataset.c)" data-c="'+esc(classe)+'" title="Visibilidade" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;opacity:'+(isClasseVisivelParaTodos(classe)?'1':'0.4')+'">'+(isClasseVisivelParaTodos(classe)?'👁️':'🙈')+'</button>':'')
+      +(isAdmin?'<button onclick="event.stopPropagation();toggleClasseVisibilidade(this.dataset.c)" data-c="'+esc(classe)+'" title="'+(isClasseVisivelParaTodos(classe)?'Visivel para todos':'Oculto')+'" style="background:none;border:none;cursor:pointer;padding:4px;opacity:1;line-height:1;display:flex;align-items:center">'+(isClasseVisivelParaTodos(classe)?eyeIcon(true,16):eyeIcon(false,16))+'</button>':'')
       +'<div style="font-size:20px;color:'+cor+';transform:'+(isClasseOpen?'rotate(180deg)':'rotate(0)')+';transition:.2s;margin-left:4px">▼</div>'
       +'</div>';
 
