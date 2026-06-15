@@ -12,6 +12,7 @@
 <style>
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -54,6 +55,7 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .ptable th,.ptable td{border:1px solid var(--ln);padding:8px;font-size:13px;text-align:center;}
 .ptable th{background:#111;color:var(--am);}
 .load{color:#888;padding:20px;text-align:center;}
+
 
 
 </style>
@@ -186,10 +188,11 @@ function render(){
     +'<button class="addbtn" onclick="addVisita()">+ Visita</button></div>'
     +statsHtml()+aviso
     +'<button class="enviar" id="env" onclick="enviar()">Enviar ✓</button>'
-    +'<div id="res"></div>';
+    +'<div id="_rcard_"></div><div id="res"></div>';
   $('app').innerHTML=html;
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadRoster();});
   renderLista();
+  loadReuniaoPublicada();
 }
 
 function refreshStats(){
@@ -423,8 +426,9 @@ function confirmarCarrossel() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// MÓDULO REUNIÃO
+// MÓDULO REUNIÃO v2 — todos os bugs corrigidos
 // ══════════════════════════════════════════════════════════════
+
 function loadReuniao() {
   state.view = 'reuniao';
   state.reuniaoTab = state.reuniaoTab || 'planejar';
@@ -435,56 +439,91 @@ function renderReuniaoShell() {
   var html = header();
   html += '<div style="display:flex;gap:6px;margin-bottom:14px">'
     + '<button class="pill'+(state.reuniaoTab==='planejar'?' on':'')+'" onclick="reuniaoTab(\'planejar\')">📋 Planejar</button>'
-    + '<button class="pill'+(state.reuniaoTab==='provas'?' on':'')+'" onclick="reuniaoTab(\'provas\')">💡 Banco de Provas</button>'
+    + '<button class="pill'+(state.reuniaoTab==='provas'?' on':'')+'" onclick="reuniaoTab(\'provas\')">💡 Provas</button>'
     + '</div>'
     + '<div id="reuniaoBody"><div class="load">Carregando…</div></div>';
   $('app').innerHTML = html;
-  $('dt') && $('dt').addEventListener('change', function(e){ state.date=e.target.value; });
   if (state.reuniaoTab === 'planejar') loadPlanejar();
   else loadProvas();
 }
 
-function reuniaoTab(tab) {
-  state.reuniaoTab = tab;
-  renderReuniaoShell();
+function reuniaoTab(tab) { state.reuniaoTab = tab; renderReuniaoShell(); }
+
+// ── Sync state ANTES de qualquer re-render (fix #9 e #12) ────
+function syncReuniaoState() {
+  var r = state._reuniaoAtiva;
+  if (!r) return;
+  if ($('_rnome_')) r.nome = $('_rnome_').value || r.nome;
+  if ($('_rtipo_')) r.tipo = $('_rtipo_').value || r.tipo;
+  if ($('_rini_'))  r.inicio = $('_rini_').value || r.inicio;
+  if ($('_rfim_'))  r.fim    = $('_rfim_').value  || r.fim;
+  // Sync durações das atividades
+  (r.atividades||[]).forEach(function(a, i){
+    var el = document.getElementById('_amin_'+i);
+    if (el) a.min = parseInt(el.value)||0;
+    var en = document.getElementById('_anome_'+i);
+    if (en) a.nome = en.value || a.nome;
+  });
+}
+
+// ── Calcular tempo ────────────────────────────────────────────
+function calcTempo(r) {
+  function toMin(t){ var p=String(t||'00:00').split(':'); return (parseInt(p[0])||0)*60+(parseInt(p[1])||0); }
+  var disp = Math.max(0, toMin(r.fim) - toMin(r.inicio));
+  var usado = (r.atividades||[]).reduce(function(s,a){ return s+(parseInt(a.min)||0); }, 0);
+  return { disp:disp, usado:usado, rest:disp-usado };
+}
+
+// ── Atualizar só a barra de tempo sem re-render (fix #12) ─────
+function updateTimebar() {
+  syncReuniaoState();
+  var r = state._reuniaoAtiva;
+  if (!r) return;
+  var t = calcTempo(r);
+  var pct = t.disp > 0 ? Math.min(100, Math.round(t.usado/t.disp*100)) : 0;
+  var cor = t.rest < 0 ? '#e55' : t.rest < 15 ? '#FFC400' : '#4ade80';
+  var bar = document.getElementById('_timebar_');
+  var txt = document.getElementById('_timetext_');
+  if (bar) { bar.style.width = pct+'%'; bar.style.background = cor; }
+  if (txt) txt.innerHTML = '<span style="color:#aaa;font-size:12px">'+r.inicio+' → '+r.fim+'</span>'
+    + '<span style="color:'+cor+';font-weight:700;font-size:13px">'
+    + (t.rest>=0 ? t.rest+'min restantes' : Math.abs(t.rest)+'min excedidos ⚠️')+'</span>';
 }
 
 // ── ABA PLANEJAR ──────────────────────────────────────────────
 function loadPlanejar() {
   callAPI('getReunioes', {}, function(r){
     state._reunioes = r.reunioes;
-    renderPlanejar();
-  }, function(e){ document.getElementById('reuniaoBody').innerHTML = '<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>'; });
+    if (state._reuniaoAtiva) renderReuniaoAtiva();
+    else renderPlanejar();
+  }, function(e){ document.getElementById('reuniaoBody').innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>'; });
 }
 
 function renderPlanejar() {
   var rs = state._reunioes || [];
   var body = document.getElementById('reuniaoBody');
   if (!body) return;
-
-  // Mostrar reunião ativa ou lista
-  if (state._reuniaoAtiva) {
-    renderReuniaoAtiva();
-    return;
-  }
-
   var html = '';
   if (CTX && CTX.role === 'admin') {
     html += '<button onclick="novaReuniao()" style="width:100%;background:#FFC400;color:#000;border:none;border-radius:12px;padding:13px;font-weight:800;cursor:pointer;font-size:15px;margin-bottom:14px">+ Nova Reunião</button>';
   }
-
   if (!rs.length) {
     html += '<div style="color:#666;text-align:center;padding:30px">Nenhuma reunião salva ainda.</div>';
   } else {
-    html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px">Modelos salvos — toque para abrir:</div>';
-    rs.forEach(function(r) {
+    rs.forEach(function(r){
       var totalMin = (r.atividades||[]).reduce(function(s,a){return s+(a.min||0);},0);
-      html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="abrirReuniao('+r.id+')">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center">'
-        + '<div><div style="font-weight:700;font-size:15px">'+esc(r.nome)+'</div>'
-        + '<div style="font-size:12px;color:#888;margin-top:2px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' · '+totalMin+'min planejados</div></div>'
-        + (CTX&&CTX.role==='admin'?'<button onclick="event.stopPropagation();deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;font-size:20px;cursor:pointer">×</button>':'')
-        + '</div></div>';
+      var pub = r.publicada ? '🟢 Publicada' : '';
+      html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+        + '<div style="cursor:pointer;flex:1" onclick="abrirReuniao('+r.id+')">'
+        + '<div style="font-weight:700;font-size:15px">'+esc(r.nome)+'</div>'
+        + '<div style="font-size:12px;color:#888;margin-top:2px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' · '+totalMin+'min'+(pub?' · <span style="color:#4ade80">'+pub+'</span>':'')+'</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;align-items:center">'
+        + (CTX&&CTX.role==='admin'?'<button onclick="publicarReuniao('+r.id+')" style="background:#0d1f12;color:#4ade80;border:1px solid #4ade80;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer">Publicar</button>':'')
+        + (CTX&&CTX.role==='admin'?'<button onclick="abrirReuniao('+r.id+')" style="background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer">✏️</button>':'')
+        + (CTX&&CTX.role==='admin'?'<button onclick="deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;font-size:20px;cursor:pointer;padding:0 4px">×</button>':'')
+        + '</div></div></div>';
     });
   }
   body.innerHTML = html;
@@ -504,10 +543,19 @@ function abrirReuniao(id) {
 
 function deletarReuniao(id) {
   if (!confirm('Excluir este modelo?')) return;
-  callAPI('deleteReuniao', {rowId: id}, function(){
-    state._reunioes = (state._reunioes||[]).filter(function(r){return r.id!==id;});
+  callAPI('deleteReuniao',{rowId:id},function(){
+    state._reunioes=(state._reunioes||[]).filter(function(r){return r.id!==id;});
     renderPlanejar();
-  }, function(e){ alert('Erro: '+(e.message||e)); });
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
+function publicarReuniao(id) {
+  var data = prompt('Para qual data publicar? (AAAA-MM-DD)',state.date||hoje());
+  if (!data) return;
+  callAPI('publishReuniao',{reuniaoId:id,dataPublicacao:data},function(){
+    alert('✅ Reunião publicada para '+data+'!');
+    loadPlanejar();
+  },function(e){alert('Erro: '+(e.message||e));});
 }
 
 function renderReuniaoAtiva() {
@@ -515,244 +563,226 @@ function renderReuniaoAtiva() {
   if (!body) return;
   var r = state._reuniaoAtiva;
   if (!r) return;
+  var t = calcTempo(r);
+  var cor = t.rest < 0 ? '#e55' : t.rest < 15 ? '#FFC400' : '#4ade80';
+  var pct = t.disp > 0 ? Math.min(100, Math.round(t.usado/t.disp*100)) : 0;
 
-  // Calcular tempo
-  function toMin(t) {
-    var p = String(t||'').split(':');
-    return (parseInt(p[0])||0)*60 + (parseInt(p[1])||0);
-  }
-  var totalDisp = Math.max(0, toMin(r.fim) - toMin(r.inicio));
-  var totalUsado = (r.atividades||[]).reduce(function(s,a){return s+(parseInt(a.min)||0);},0);
-  var restante = totalDisp - totalUsado;
-  var pct = totalDisp > 0 ? Math.min(100, Math.round(totalUsado/totalDisp*100)) : 0;
-  var barColor = restante < 0 ? '#e55' : restante < 15 ? '#FFC400' : '#4ade80';
+  var html = '';
 
-  var html = '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px;margin-bottom:12px">';
-  // Campos do cabeçalho
-  if (CTX && CTX.role === 'admin') {
-    html += '<input id="_rnome_" value="'+esc(r.nome)+'" placeholder="Nome do modelo (ex: Reunião padrão)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:8px;box-sizing:border-box;font-size:14px">'
-      + '<div style="display:flex;gap:8px;margin-bottom:8px">'
-      + '<select id="_rtipo_" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
-      + '<option'+(r.tipo==='Sábado'?' selected':'')+'>Sábado</option>'
-      + '<option'+(r.tipo==='Domingo'?' selected':'')+'>Domingo</option>'
-      + '</select>'
-      + '<input id="_rini_" type="time" value="'+r.inicio+'" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px" onchange="atualizarTempoReuniao()">'
-      + '<input id="_rfim_" type="time" value="'+r.fim+'" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px" onchange="atualizarTempoReuniao()">'
-      + '</div>';
-  } else {
-    html += '<div style="font-weight:800;font-size:16px;margin-bottom:4px">'+esc(r.nome)+'</div>'
-      + '<div style="font-size:13px;color:#aaa;margin-bottom:8px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+'</div>';
-  }
-
-  // Barra de tempo
-  html += '<div style="margin-bottom:4px;display:flex;justify-content:space-between;font-size:12px">'
-    + '<span style="color:#aaa">⏱ '+r.inicio+' → '+r.fim+'</span>'
-    + '<span style="color:'+barColor+';font-weight:700">'+(restante>=0?restante+'min restantes':Math.abs(restante)+'min excedidos ⚠️')+'</span>'
+  // Cabeçalho da reunião
+  html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px;margin-bottom:10px">'
+    // Nome do modelo — fix #9: salvamos onInput, não onBlur
+    + '<input id="_rnome_" value="'+esc(r.nome)+'" placeholder="Nome do modelo (ex: Reunião padrão sábado)" '
+    + 'oninput="state._reuniaoAtiva.nome=this.value" '
+    + 'style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;margin-bottom:8px;box-sizing:border-box;font-size:14px">'
+    // Tipo + Horários — fix #10: usar type=time com oninput
+    + '<div style="display:flex;gap:8px;margin-bottom:8px">'
+    + '<select id="_rtipo_" onchange="state._reuniaoAtiva.tipo=this.value" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
+    + '<option'+(r.tipo==='Sábado'?' selected':'')+'>Sábado</option>'
+    + '<option'+(r.tipo==='Domingo'?' selected':'')+'>Domingo</option>'
+    + '</select>'
+    + '<input id="_rini_" type="time" value="'+r.inicio+'" '
+    + 'oninput="state._reuniaoAtiva.inicio=this.value;updateTimebar()" '
+    + 'onchange="state._reuniaoAtiva.inicio=this.value;updateTimebar()" '
+    + 'style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
+    + '<input id="_rfim_" type="time" value="'+r.fim+'" '
+    + 'oninput="state._reuniaoAtiva.fim=this.value;updateTimebar()" '
+    + 'onchange="state._reuniaoAtiva.fim=this.value;updateTimebar()" '
+    + 'style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
+    + '</div>'
+    // Barra de tempo
+    + '<div id="_timetext_" style="display:flex;justify-content:space-between;margin-bottom:4px">'
+    + '<span style="color:#aaa;font-size:12px">'+r.inicio+' → '+r.fim+'</span>'
+    + '<span style="color:'+cor+';font-weight:700;font-size:13px">'+(t.rest>=0?t.rest+'min restantes':Math.abs(t.rest)+'min excedidos ⚠️')+'</span>'
     + '</div>'
     + '<div style="background:#222;border-radius:6px;height:8px;overflow:hidden">'
-    + '<div style="background:'+barColor+';height:100%;width:'+pct+'%;transition:.3s"></div>'
+    + '<div id="_timebar_" style="background:'+cor+';height:100%;width:'+pct+'%;transition:.3s"></div>'
     + '</div>'
-    + '<div style="font-size:11px;color:#666;margin-top:3px">'+totalUsado+'min usados de '+totalDisp+'min disponíveis</div>'
+    + '<div style="font-size:11px;color:#666;margin-top:3px">'+t.usado+'min usados de '+t.disp+'min</div>'
     + '</div>';
 
-  // Lista de atividades
+  // Lista de atividades — fix #11: ícones e lista limpa
   html += '<div id="_rativs_">';
   (r.atividades||[]).forEach(function(a,i){
-    html += renderAtividade(a, i);
+    html += '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">'
+      + '<div style="flex:1">'
+      + '<input id="_anome_'+i+'" value="'+esc(a.nome)+'" '
+      + 'oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" '
+      + 'style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:14px;font-weight:600;padding:2px 0;margin-bottom:4px">'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
+      // fix #12: oninput atualiza timebar em tempo real
+      + '<input id="_amin_'+i+'" type="number" value="'+(a.min||0)+'" min="0" '
+      + 'oninput="state._reuniaoAtiva.atividades['+i+'].min=parseInt(this.value)||0;updateTimebar()" '
+      + 'style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
+      + '<span style="color:#888;font-size:12px">min</span>'
+      + '<button onclick="removerAtiv('+i+')" title="Remover atividade" style="background:#2a0a0a;border:1px solid #e55;border-radius:6px;color:#e55;cursor:pointer;font-size:14px;padding:4px 7px;margin-left:2px">🗑️</button>'
+      + '</div></div>';
   });
   html += '</div>';
 
-  // Botões de adicionar (só admin)
-  if (CTX && CTX.role === 'admin') {
-    html += '<div style="display:flex;gap:8px;margin-top:8px">'
-      + '<button onclick="adicionarAtividade()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">+ Atividade livre</button>'
-      + '<button onclick="adicionarProvaDoBank()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">+ Do banco</button>'
-      + '</div>'
-      + '<div style="display:flex;gap:8px;margin-top:8px">'
-      + '<button onclick="fecharReuniao()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Voltar</button>'
-      + '<button onclick="salvarReuniao()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">Salvar modelo</button>'
-      + '</div>';
-  } else {
-    html += '<button onclick="fecharReuniao()" style="width:100%;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:8px">Voltar</button>';
-  }
+  // fix #11: botões de adicionar com ícone
+  html += '<div style="display:flex;gap:8px;margin-top:8px">'
+    + '<button onclick="adicionarAtividade()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">➕ Atividade livre</button>'
+    + '<button onclick="adicionarProvaDoBank()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">💡 Do banco</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:8px">'
+    + '<button onclick="fecharReuniao()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">← Voltar</button>'
+    + '<button onclick="salvarReuniao()" style="flex:2;background:#FFC400;color:#000;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;font-size:15px">Salvar modelo ✓</button>'
+    + '</div>';
 
   body.innerHTML = html;
 }
 
-function renderAtividade(a, i) {
-  var isAdmin = CTX && CTX.role === 'admin';
-  return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px">'
-    + '<div style="flex:1">'
-    + (isAdmin ? '<input value="'+esc(a.nome)+'" onchange="updateAtiv('+i+',\'nome\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:14px;font-weight:600;padding:2px 0;margin-bottom:4px">' : '<div style="font-weight:600;font-size:14px">'+esc(a.nome)+'</div>')
-    + '</div>'
-    + '<div style="display:flex;align-items:center;gap:6px">'
-    + (isAdmin ? '<input type="number" value="'+( a.min||0)+'" min="1" onchange="updateAtiv('+i+',\'min\',this.value)" style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
-               : '<span style="color:#FFC400;font-weight:800;font-size:14px">'+a.min+'</span>')
-    + '<span style="color:#888;font-size:12px">min</span>'
-    + (isAdmin ? '<button onclick="removerAtiv('+i+')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:18px;padding:0">×</button>' : '')
-    + '</div></div>';
-}
-
-function atualizarTempoReuniao() {
-  var r = state._reuniaoAtiva;
-  if (!r) return;
-  r.inicio = ($('_rini_')||{}).value || r.inicio;
-  r.fim = ($('_rfim_')||{}).value || r.fim;
+function adicionarAtividade() {
+  syncReuniaoState();
+  state._reuniaoAtiva.atividades.push({nome:'Nova atividade',min:15});
   renderReuniaoAtiva();
 }
 
-function adicionarAtividade() {
-  var r = state._reuniaoAtiva;
-  if (!r) return;
-  r.atividades.push({nome:'Nova atividade', min:15});
+function removerAtiv(i) {
+  syncReuniaoState();
+  state._reuniaoAtiva.atividades.splice(i,1);
   renderReuniaoAtiva();
 }
 
 function adicionarProvaDoBank() {
-  callAPI('getProvas', {}, function(res){
-    var ps = res.provas || [];
-    if (!ps.length) { alert('Banco de provas vazio. Adicione provas primeiro.'); return; }
-    var ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
-    ov.innerHTML = '<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:400px;margin:0 auto">'
-      + '<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:12px">Selecionar prova</div>'
-      + ps.map(function(p){
-          return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer" onclick="selecionarProva('+p.id+','+p.tempoMin+')">'
-            + '<div style="font-weight:700">'+esc(p.nome)+'</div>'
-            + '<div style="font-size:12px;color:#888;margin-top:2px">'+p.tempoMin+'min'+(p.categoria?' · '+esc(p.categoria):'')+''+(p.descricao?' · '+esc(p.descricao.substring(0,40)):'')+' </div>'
-            + '</div>';
-        }).join('')
-      + '<button onclick="this.parentNode.parentNode.remove()" style="width:100%;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:8px">Cancelar</button>'
-      + '</div>';
+  callAPI('getProvas',{},function(res){
+    var ps = res.provas||[];
+    if (!ps.length){alert('Banco de provas vazio.');return;}
+    var ov=document.createElement('div');
+    ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
+    ov.innerHTML='<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:400px;margin:0 auto">'
+      +'<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:12px">💡 Selecionar prova</div>'
+      +ps.map(function(p){
+        return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer" onclick="selecionarProva('+p.id+','+p.tempoMin+')">'
+          +'<div style="font-weight:700">'+esc(p.nome)+'</div>'
+          +'<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?'<span style="color:#FFC400">'+esc(p.categoria)+'</span> · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.substring(0,40)):'')+' </div>'
+          +'</div>';
+      }).join('')
+      +'<button onclick="this.parentNode.parentNode.remove()" style="width:100%;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:8px">Cancelar</button>'
+      +'</div>';
     document.body.appendChild(ov);
-    window._provasOverlay = ov;
-    window._provasList = ps;
-  }, function(e){ alert('Erro: '+(e.message||e)); });
+    window._provasOverlay=ov; window._provasList=ps;
+  },function(e){alert('Erro: '+(e.message||e));});
 }
 
-function selecionarProva(id, min) {
-  if (window._provasOverlay) window._provasOverlay.remove();
-  var p = (window._provasList||[]).find(function(x){return x.id===id;});
-  if (!p) return;
-  var r = state._reuniaoAtiva;
-  if (!r) return;
-  r.atividades.push({nome: p.nome, min: p.tempoMin||min||15});
+function selecionarProva(id,min){
+  if(window._provasOverlay)window._provasOverlay.remove();
+  var p=(window._provasList||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  syncReuniaoState();
+  state._reuniaoAtiva.atividades.push({nome:p.nome,min:p.tempoMin||min||15});
   renderReuniaoAtiva();
 }
 
-function updateAtiv(i, campo, val) {
-  var r = state._reuniaoAtiva;
-  if (!r || !r.atividades[i]) return;
-  r.atividades[i][campo] = campo==='min' ? (parseInt(val)||0) : val;
-  // só re-renderiza a barra (não toda a tela, para não perder foco)
-  var body = document.getElementById('reuniaoBody');
-  if (body) {
-    // atualiza barra de tempo
-    function toMin(t){var p=String(t||'').split(':');return (parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
-    var totalDisp=Math.max(0,toMin(r.fim)-toMin(r.inicio));
-    var totalUsado=(r.atividades||[]).reduce(function(s,a){return s+(parseInt(a.min)||0);},0);
-    var restante=totalDisp-totalUsado;
-    var pct=totalDisp>0?Math.min(100,Math.round(totalUsado/totalDisp*100)):0;
-    var barColor=restante<0?'#e55':restante<15?'#FFC400':'#4ade80';
-    // atualizar apenas texto da barra sem re-render total
-  }
-}
+function fecharReuniao(){state._reuniaoAtiva=null;renderPlanejar();}
 
-function removerAtiv(i) {
-  var r = state._reuniaoAtiva;
-  if (!r) return;
-  r.atividades.splice(i,1);
-  renderReuniaoAtiva();
-}
-
-function fecharReuniao() {
-  state._reuniaoAtiva = null;
-  renderPlanejar();
-}
-
-function salvarReuniao() {
-  var r = state._reuniaoAtiva;
-  if (!r) return;
-  r.nome = ($('_rnome_')||{}).value || r.nome || 'Sem nome';
-  r.tipo = ($('_rtipo_')||{}).value || r.tipo;
-  r.inicio = ($('_rini_')||{}).value || r.inicio;
-  r.fim = ($('_rfim_')||{}).value || r.fim;
-  if (!r.nome.trim()) { alert('Dê um nome ao modelo.'); return; }
-  callAPI('saveReuniao', {reuniao: r}, function(){
-    state._reuniaoAtiva = null;
-    loadPlanejar();
-  }, function(e){ alert('Erro ao salvar: '+(e.message||e)); });
+function salvarReuniao(){
+  syncReuniaoState();
+  var r=state._reuniaoAtiva;
+  if(!r)return;
+  if(!r.nome.trim()){alert('Dê um nome ao modelo.');return;}
+  callAPI('saveReuniao',{reuniao:r},function(){
+    state._reuniaoAtiva=null; loadPlanejar();
+  },function(e){alert('Erro ao salvar: '+(e.message||e));});
 }
 
 // ── ABA PROVAS ────────────────────────────────────────────────
-function loadProvas() {
-  callAPI('getProvas', {}, function(r){
-    state._provas = r.provas;
-    renderProvas();
-  }, function(e){ document.getElementById('reuniaoBody').innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>'; });
+function loadProvas(){
+  callAPI('getProvas',{},function(r){
+    state._provas=r.provas; renderProvas();
+  },function(e){document.getElementById('reuniaoBody').innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>';});
 }
 
-function renderProvas() {
-  var ps = state._provas || [];
-  var body = document.getElementById('reuniaoBody');
-  if (!body) return;
-  var html = '';
-  if (CTX && CTX.role === 'admin') {
-    html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px;margin-bottom:14px">'
-      + '<div style="font-size:12px;color:#FFC400;font-weight:700;margin-bottom:8px">NOVA PROVA</div>'
-      + '<input id="_pnome_" placeholder="Nome da prova" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
-      + '<input id="_pdesc_" placeholder="Descrição (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
-      + '<div style="display:flex;gap:8px">'
-      + '<input id="_pcat_" placeholder="Categoria (ex: Marchas)" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
-      + '<input id="_pmin_" type="number" value="15" min="1" placeholder="Min" style="width:70px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:8px;padding:8px;text-align:center;font-size:14px;font-weight:800">'
-      + '<button onclick="adicionarProva()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">+ Add</button>'
-      + '</div></div>';
+function renderProvas(){
+  var ps=state._provas||[];
+  var body=document.getElementById('reuniaoBody');
+  if(!body)return;
+  var html='';
+  if(CTX&&CTX.role==='admin'){
+    html+='<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px;margin-bottom:14px">'
+      +'<div style="font-size:12px;color:#FFC400;font-weight:700;margin-bottom:8px">NOVA PROVA</div>'
+      +'<input id="_pnome_" placeholder="Nome da prova" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
+      +'<input id="_pdesc_" placeholder="Descrição (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
+      +'<div style="display:flex;gap:8px">'
+      // fix #13: texto correto no placeholder
+      +'<input id="_pcat_" placeholder="Categoria: (ex: Nós e Amarras)" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:14px">'
+      +'<input id="_pmin_" type="number" value="15" min="1" placeholder="Min" style="width:70px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:8px;padding:8px;text-align:center;font-size:14px;font-weight:800">'
+      +'<button onclick="adicionarProva()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">➕</button>'
+      +'</div></div>';
   }
-
-  if (!ps.length) {
-    html += '<div style="color:#666;text-align:center;padding:30px">Banco de provas vazio.</div>';
+  if(!ps.length){
+    html+='<div style="color:#666;text-align:center;padding:30px">Banco de provas vazio.</div>';
   } else {
     ps.forEach(function(p){
-      html += '<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'
-        + '<div style="flex:1">'
-        + '<div style="font-weight:700">'+esc(p.nome)+'</div>'
-        + '<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?esc(p.categoria)+' · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.substring(0,50)):'')+' </div>'
-        + '</div>'
-        + (CTX&&CTX.role==='admin'?'<button onclick="deletarProva('+p.id+')" style="background:none;border:none;color:#e55;font-size:20px;cursor:pointer">×</button>':'')
-        + '</div>';
+      html+='<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'
+        +'<div style="flex:1">'
+        +'<div style="font-weight:700">'+esc(p.nome)+'</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?'<span style="color:#FFC400">'+esc(p.categoria)+'</span> · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.substring(0,50)):'')+' </div>'
+        +'</div>'
+        +(CTX&&CTX.role==='admin'?'<button onclick="deletarProva('+p.id+')" style="background:none;border:none;color:#e55;font-size:20px;cursor:pointer;padding:0">🗑️</button>':'')
+        +'</div>';
     });
   }
-  body.innerHTML = html;
+  body.innerHTML=html;
 }
 
-function adicionarProva() {
-  var nome = ($('_pnome_')||{}).value || '';
-  if (!nome.trim()) { alert('Informe o nome da prova.'); return; }
-  var prova = {
-    nome: nome.trim(),
-    descricao: ($('_pdesc_')||{}).value || '',
-    tempoMin: parseInt(($('_pmin_')||{}).value)||15,
-    categoria: ($('_pcat_')||{}).value || ''
-  };
-  callAPI('saveProva', {prova: prova}, function(){
-    loadProvas();
-  }, function(e){ alert('Erro: '+(e.message||e)); });
+function adicionarProva(){
+  var nome=($('_pnome_')||{}).value||'';
+  if(!nome.trim()){alert('Informe o nome da prova.');return;}
+  var prova={nome:nome.trim(),descricao:($('_pdesc_')||{}).value||'',tempoMin:parseInt(($('_pmin_')||{}).value)||15,categoria:($('_pcat_')||{}).value||''};
+  callAPI('saveProva',{prova:prova},function(){loadProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-function deletarProva(id) {
-  if (!confirm('Remover esta prova do banco?')) return;
-  callAPI('deleteProva', {rowId: id}, function(){
-    state._provas = (state._provas||[]).filter(function(p){return p.id!==id;});
+function deletarProva(id){
+  if(!confirm('Remover esta prova?'))return;
+  callAPI('deleteProva',{rowId:id},function(){
+    state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});
     renderProvas();
-  }, function(e){ alert('Erro: '+(e.message||e)); });
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
+// ── Reunião publicada na tela inicial ─────────────────────────
+function loadReuniaoPublicada(){
+  callAPI('getReuniaoPublicada',{date:state.date},function(r){
+    state._reuniaoHoje=r.reuniao;
+    if(r.reuniao) mostrarReuniaoCard();
+  },function(){});
+}
+
+function mostrarReuniaoCard(){
+  var r=state._reuniaoHoje;
+  if(!r)return;
+  var res=$('_rcard_');
+  if(!res)return;
+  var totalMin=(r.atividades||[]).reduce(function(s,a){return s+(a.min||0);},0);
+  res.innerHTML='<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:14px;padding:14px;margin-bottom:14px">'
+    +'<div style="font-size:12px;color:#4ade80;font-weight:700;margin-bottom:6px">📋 REUNIÃO DE HOJE — '+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' ('+totalMin+'min)</div>'
+    +'<div style="font-weight:800;font-size:15px;margin-bottom:8px">'+esc(r.nome)+'</div>'
+    +(r.atividades||[]).map(function(a){
+      return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid #1f5132">'
+        +'<span>'+esc(a.nome)+'</span><span style="color:#4ade80;font-weight:700">'+a.min+'min</span></div>';
+    }).join('')
+    +'</div>';
 }
 
 // ══════════════════════════════════════════════════════════════
-// MÓDULO ESPECIALIDADES E PROGRESSÃO DE CLASSE
+// MÓDULO ESPECIALIDADES E PROGRESSÃO DE CLASSE v2
 // ══════════════════════════════════════════════════════════════
-var CLASSES_ESP = ['Amigo','Companheiro','Pesquisador','Pioneiro','Excelsior'];
+var CLASSES_ESP = [
+  'Amigo','Companheiro','Pesquisador','Pioneiro','Excelsior',
+  'Guia','Líder','Líder Master','Líder Master Avançado'
+];
 var CLASSE_EMOJI = {
-  'Amigo':'🌱','Companheiro':'🌿','Pesquisador':'🔍','Pioneiro':'⚡','Excelsior':'🌟'
+  'Amigo':'🌱','Companheiro':'🌿','Pesquisador':'🔍','Pioneiro':'⚡',
+  'Excelsior':'🌟','Guia':'🧭','Líder':'👑','Líder Master':'🏅',
+  'Líder Master Avançado':'🎖️'
+};
+var CLASSE_COR = {
+  'Amigo':'#4ade80','Companheiro':'#22d3ee','Pesquisador':'#a78bfa',
+  'Pioneiro':'#fb923c','Excelsior':'#FFC400','Guia':'#f472b6',
+  'Líder':'#60a5fa','Líder Master':'#818cf8','Líder Master Avançado':'#e879f9'
 };
 
 function loadEspecialidades() {
@@ -768,14 +798,11 @@ function loadEspecialidades() {
 function renderEspecialidades() {
   var d = state._esp;
   if (!d) return;
-
-  // Se tem membro selecionado, mostra a ficha
   if (state._espMembro) { renderFichaMembro(); return; }
 
   var html = header();
   html += '<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:12px">⭐ ESPECIALIDADES E CLASSES</div>';
 
-  // Agrupar por unidade
   var porUnidade = {};
   (d.membros||[]).forEach(function(m){
     if (!porUnidade[m.unidade]) porUnidade[m.unidade] = [];
@@ -783,23 +810,25 @@ function renderEspecialidades() {
   });
 
   Object.keys(porUnidade).forEach(function(u){
-    html += '<div style="font-size:12px;color:#FFC400;font-weight:700;letter-spacing:1px;margin:12px 0 6px">'+
-      (EMOJI[u]||'')+ ' ' + esc(u).toUpperCase()+'</div>';
+    html += '<div style="font-size:12px;color:#FFC400;font-weight:700;letter-spacing:1px;margin:12px 0 6px">'+(EMOJI[u]||'')+' '+esc(u).toUpperCase()+'</div>';
     porUnidade[u].forEach(function(m){
-      var pct = m.progresso.total > 0 ? Math.round(m.progresso.feitos/m.progresso.total*100) : 0;
-      var barColor = pct >= 100 ? '#4ade80' : pct >= 50 ? '#FFC400' : '#888';
-      html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="abrirMembro('+JSON.stringify(m.unidade)+','+JSON.stringify(m.nome)+')">'
+      // Mini resumo de classes ativas
+      var classesBadges = (m.classesAtivas||['Amigo']).map(function(c){
+        var prog = (m.progressoClasses||[]).find(function(p){return p.classe===c;}) || {feitos:0,total:1};
+        var pct = prog.total > 0 ? Math.round(prog.feitos/prog.total*100) : 0;
+        var cor = CLASSE_COR[c] || '#FFC400';
+        return '<span style="background:'+cor+'22;border:1px solid '+cor+';color:'+cor+';border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700;margin-right:4px">'
+          +(CLASSE_EMOJI[c]||'')+ ' '+c+' '+pct+'%</span>';
+      }).join('');
+
+      html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="abrirMembro(\''+esc(m.unidade)+'\',\''+esc(m.nome)+'\')">'
         + '<div style="display:flex;align-items:center;gap:10px">'
-        + '<div style="font-size:22px">'+(CLASSE_EMOJI[m.classeAtual]||'⭐')+'</div>'
+        + '<div style="font-size:26px">'+(CLASSE_EMOJI[m.classesAtivas&&m.classesAtivas[0]||'Amigo']||'⭐')+'</div>'
         + '<div style="flex:1">'
         + '<div style="font-weight:700;font-size:15px">'+esc(m.nome)+'</div>'
-        + '<div style="font-size:12px;color:#aaa;margin-top:2px">'+esc(m.classeAtual)
-        + (m.progresso.proxima?' · rumo a '+esc(m.progresso.proxima):'')+'</div>'
-        + '<div style="background:#222;border-radius:4px;height:5px;margin-top:6px;overflow:hidden">'
-        + '<div style="background:'+barColor+';height:100%;width:'+pct+'%"></div></div>'
+        + '<div style="margin-top:4px">'+classesBadges+'</div>'
         + '</div>'
-        + '<div style="text-align:right"><div style="font-size:11px;color:#888">'+m.progresso.feitos+'/'+m.progresso.total+'</div>'
-        + '<div style="font-size:11px;color:#888;margin-top:2px">'+m.especialidades.length+' esp.</div></div>'
+        + '<div style="text-align:right;font-size:11px;color:#888">'+m.especialidades.length+' esp.</div>'
         + '</div></div>';
     });
   });
@@ -812,7 +841,8 @@ function abrirMembro(unidade, nome) {
   if (!d) return;
   var m = (d.membros||[]).find(function(x){ return x.unidade===unidade && x.nome===nome; });
   if (!m) return;
-  state._espMembro = JSON.parse(JSON.stringify(m)); // cópia editável
+  state._espMembro = JSON.parse(JSON.stringify(m));
+  state._espClasseTab = state._espMembro.classesAtivas[0] || 'Amigo';
   renderFichaMembro();
 }
 
@@ -821,55 +851,72 @@ function renderFichaMembro() {
   var d = state._esp;
   if (!m || !d) return;
   var isAdmin = CTX && CTX.role === 'admin';
-  var body = $('app');
   var req = d.requisitos || {};
+  var classeAtiva = state._espClasseTab || m.classesAtivas[0] || 'Amigo';
+  var cor = CLASSE_COR[classeAtiva] || '#FFC400';
 
   var html = header();
 
   // Cabeçalho do membro
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:14px">'
-    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'
-    + '<div style="font-size:36px">'+(CLASSE_EMOJI[m.classeAtual]||'⭐')+'</div>'
-    + '<div><div style="font-weight:800;font-size:18px">'+esc(m.nome)+'</div>'
+  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
+    + '<div style="font-size:36px">'+(CLASSE_EMOJI[classeAtiva]||'⭐')+'</div>'
+    + '<div style="flex:1"><div style="font-weight:800;font-size:18px">'+esc(m.nome)+'</div>'
     + '<div style="font-size:13px;color:#aaa">'+esc(m.unidade)+'</div></div>'
     + '</div>';
 
-  // Seletor de classe (admin)
+  // Abas de classes ativas
+  if (m.classesAtivas.length > 1) {
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
+    m.classesAtivas.forEach(function(c){
+      var on = c === classeAtiva;
+      var cc = CLASSE_COR[c]||'#FFC400';
+      html += '<button onclick="espTab(\''+c+'\')" style="border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+( CLASSE_EMOJI[c]||'')+' '+c+'</button>';
+    });
+    html += '</div>';
+  }
+
+  // Gerenciar classes (admin)
   if (isAdmin) {
-    html += '<div style="font-size:11px;color:#aaa;margin-bottom:4px">CLASSE ATUAL</div>'
-      + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px">CLASSES ATIVAS (pode ter mais de uma):</div>'
+      + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
       + CLASSES_ESP.map(function(c){
-          var on = c===m.classeAtual;
-          return '<button onclick="setClasse('+JSON.stringify(c)+')" style="border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;background:'+(on?'#FFC400':'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+(CLASSE_EMOJI[c]||'')+' '+c+'</button>';
+          var on = m.classesAtivas.indexOf(c) >= 0;
+          var cc = CLASSE_COR[c]||'#FFC400';
+          return '<button onclick="toggleClasseAtiva(\''+c+'\')" style="border:none;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+(CLASSE_EMOJI[c]||'')+' '+c+'</button>';
         }).join('')
       + '</div>';
-  } else {
-    html += '<div style="font-size:11px;color:#aaa">CLASSE ATUAL: <strong style="color:#FFC400">'+esc(m.classeAtual)+'</strong></div>';
   }
   html += '</div>';
 
-  // Requisitos da classe atual
-  var reqs = req[m.classeAtual] || [];
-  var done = m.requisitos[m.classeAtual] || [];
+  // Requisitos da classe ativa
+  var reqs = req[classeAtiva] || [];
+  var done = m.requisitos[classeAtiva] || [];
+  var datas = m.datas[classeAtiva] || [];
   var feitos = reqs.filter(function(_,i){return done[i];}).length;
   var pct = reqs.length > 0 ? Math.round(feitos/reqs.length*100) : 0;
-  var prox = CLASSES_ESP[CLASSES_ESP.indexOf(m.classeAtual)+1];
+  var prox = CLASSES_ESP[CLASSES_ESP.indexOf(classeAtiva)+1];
 
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:14px">'
+  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:13px;font-weight:700;color:#FFC400">REQUISITOS — '+esc(m.classeAtual).toUpperCase()+'</div>'
-    + '<div style="font-size:13px;font-weight:800;color:'+(pct>=100?'#4ade80':'#FFC400')+'">'+feitos+'/'+reqs.length+'</div>'
+    + '<div style="font-size:13px;font-weight:700;color:'+cor+'">📋 REQUISITOS — '+esc(classeAtiva).toUpperCase()+'</div>'
+    + '<div style="font-size:14px;font-weight:800;color:'+(pct>=100?'#4ade80':cor)+'">'+feitos+'/'+reqs.length+'</div>'
     + '</div>'
-    + '<div style="background:#222;border-radius:6px;height:8px;margin-bottom:10px;overflow:hidden">'
-    + '<div style="background:'+(pct>=100?'#4ade80':'#FFC400')+';height:100%;width:'+pct+'%;transition:.3s"></div>'
+    + '<div style="background:#222;border-radius:6px;height:8px;margin-bottom:12px;overflow:hidden">'
+    + '<div style="background:'+(pct>=100?'#4ade80':cor)+';height:100%;width:'+pct+'%;transition:.3s"></div>'
     + '</div>';
 
   reqs.forEach(function(r, i){
     var ok = !!(done[i]);
-    html += '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">'
-      + '<button onclick="toggleReq('+i+')" style="flex-shrink:0;width:22px;height:22px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#0d1f12':'transparent')+';color:#4ade80;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">'+(ok?'✓':'')+'</button>'
-      + '<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(r)+'</div>'
-      + '</div>';
+    var dataConc = datas[i] || '';
+    html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;padding:8px;background:'+(ok?'#0a1f0f':'#1a1a1a')+';border-radius:8px">'
+      // Checkbox
+      + '<button onclick="toggleReq('+i+')" style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#444')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
+      + '<div style="flex:1">'
+      + '<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.75;':'')+'">' +esc(r)+'</div>'
+      // Data de conclusão
+      + (ok ? '<input type="date" value="'+esc(dataConc)+'" onchange="setDataReq('+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">' : '')
+      + '</div></div>';
   });
 
   if (pct >= 100 && prox) {
@@ -877,20 +924,22 @@ function renderFichaMembro() {
   }
   html += '</div>';
 
-  // Especialidades
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:14px">'
+  // Especialidades (seção visual distinta)
+  html += '<div style="background:#141414;border:2px solid #FFC400;border-radius:14px;padding:14px;margin-bottom:14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:700;color:#FFC400">ESPECIALIDADES ('+m.especialidades.length+')</div>'
-    + (isAdmin?'<button onclick="adicionarEspecialidade()" style="background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar</button>':'')
+    + '<div style="font-size:13px;font-weight:700;color:#FFC400">🏅 ESPECIALIDADES DE HONRA ('+m.especialidades.length+')</div>'
+    + (isAdmin?'<button onclick="adicionarEspecialidade()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar</button>':'')
     + '</div>';
 
   if (!m.especialidades.length) {
-    html += '<div style="color:#666;font-size:13px">Nenhuma especialidade registrada ainda.</div>';
+    html += '<div style="color:#666;font-size:13px">Nenhuma especialidade registrada.</div>';
   } else {
     m.especialidades.forEach(function(e,i){
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:#1a1a1a;border-radius:8px;padding:8px 10px">'
-        + '<div style="font-size:13px;flex:1">🏅 '+esc(e)+'</div>'
-        + (isAdmin?'<button onclick="removerEsp('+i+')" style="background:none;border:none;color:#e55;font-size:16px;cursor:pointer;padding:0">×</button>':'')
+        + '<span style="font-size:16px">🏅</span>'
+        + '<div style="flex:1;font-size:13px;color:#FFC400;font-weight:600">'+esc(e.nome||e)+'</div>'
+        + (e.data?'<span style="font-size:11px;color:#888">'+esc(e.data)+'</span>':'')
+        + (isAdmin?'<button onclick="removerEsp('+i+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:0">×</button>':'')
         + '</div>';
     });
   }
@@ -899,52 +948,188 @@ function renderFichaMembro() {
   // Botões
   html += '<div style="display:flex;gap:8px">'
     + '<button onclick="state._espMembro=null;renderEspecialidades()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Voltar</button>'
-    + (isAdmin?'<button onclick="salvarMembro()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar</button>':'')
+    + (isAdmin?'<button onclick="salvarMembro()" style="flex:2;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;font-size:15px">Salvar</button>':'')
     + '</div>';
 
-  body.innerHTML = html;
+  $('app').innerHTML = html;
 }
 
-function setClasse(classe) {
-  if (!state._espMembro) return;
-  state._espMembro.classeAtual = classe;
+function espTab(classe) {
+  state._espClasseTab = classe;
+  renderFichaMembro();
+}
+
+function toggleClasseAtiva(c) {
+  var m = state._espMembro; if (!m) return;
+  var idx = m.classesAtivas.indexOf(c);
+  if (idx >= 0) { if (m.classesAtivas.length > 1) m.classesAtivas.splice(idx,1); }
+  else m.classesAtivas.push(c);
+  state._espClasseTab = m.classesAtivas[0];
   renderFichaMembro();
 }
 
 function toggleReq(idx) {
-  var m = state._espMembro;
-  if (!m) return;
-  var classe = m.classeAtual;
-  if (!m.requisitos[classe]) m.requisitos[classe] = [];
-  m.requisitos[classe][idx] = !m.requisitos[classe][idx];
+  var m = state._espMembro; if (!m) return;
+  var c = state._espClasseTab || m.classesAtivas[0];
+  if (!m.requisitos[c]) m.requisitos[c] = [];
+  m.requisitos[c][idx] = !m.requisitos[c][idx];
+  // Data automática de hoje ao marcar
+  if (m.requisitos[c][idx]) {
+    if (!m.datas[c]) m.datas[c] = [];
+    if (!m.datas[c][idx]) m.datas[c][idx] = hoje();
+  }
   renderFichaMembro();
+}
+
+function setDataReq(idx, val) {
+  var m = state._espMembro; if (!m) return;
+  var c = state._espClasseTab || m.classesAtivas[0];
+  if (!m.datas[c]) m.datas[c] = [];
+  m.datas[c][idx] = val;
 }
 
 function adicionarEspecialidade() {
   var nome = prompt('Nome da especialidade:');
-  if (!nome || !nome.trim()) return;
-  state._espMembro.especialidades.push(nome.trim());
+  if (!nome||!nome.trim()) return;
+  var data = prompt('Data de conclusão (opcional, formato AAAA-MM-DD):') || '';
+  state._espMembro.especialidades.push({nome:nome.trim(), data:data.trim()});
   renderFichaMembro();
 }
 
 function removerEsp(idx) {
-  state._espMembro.especialidades.splice(idx, 1);
+  state._espMembro.especialidades.splice(idx,1);
   renderFichaMembro();
 }
 
 function salvarMembro() {
-  var m = state._espMembro;
-  if (!m) return;
-  callAPI('saveMembro', {dados: m}, function(){
-    // Atualiza no cache local
+  var m = state._espMembro; if (!m) return;
+  callAPI('saveMembro', {dados:m}, function(){
     var d = state._esp;
     if (d) {
-      var idx = (d.membros||[]).findIndex(function(x){ return x.unidade===m.unidade && x.nome===m.nome; });
-      if (idx >= 0) d.membros[idx] = JSON.parse(JSON.stringify(m));
+      var i = (d.membros||[]).findIndex(function(x){return x.unidade===m.unidade&&x.nome===m.nome;});
+      if (i>=0) d.membros[i]=JSON.parse(JSON.stringify(m));
     }
-    state._espMembro = null;
-    renderEspecialidades();
+    state._espMembro=null; renderEspecialidades();
   }, function(e){ alert('Erro ao salvar: '+(e.message||e)); });
+}
+
+// Sobrescrever renderFichaMembro para exibir classes em PARALELO
+function renderFichaMembro() {
+  var m = state._espMembro;
+  var d = state._esp;
+  if (!m || !d) return;
+  var isAdmin = CTX && CTX.role === 'admin';
+  var req = d.requisitos || {};
+
+  var html = header();
+
+  // Cabeçalho do membro
+  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
+    + '<div style="font-size:36px">'+(CLASSE_EMOJI[m.classesAtivas&&m.classesAtivas[0]||'Amigo']||'⭐')+'</div>'
+    + '<div style="flex:1"><div style="font-weight:800;font-size:18px">'+esc(m.nome)+'</div>'
+    + '<div style="font-size:13px;color:#aaa">'+esc(m.unidade)+'</div></div>'
+    + '</div>';
+
+  // Gerenciar classes ativas (admin)
+  if (isAdmin) {
+    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px">CLASSES ATIVAS:</div>'
+      + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+      + CLASSES_ESP.map(function(c){
+          var on = m.classesAtivas.indexOf(c) >= 0;
+          var cc = CLASSE_COR[c]||'#FFC400';
+          return '<button onclick="toggleClasseAtiva(\''+c+'\')" style="border:none;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+(CLASSE_EMOJI[c]||'')+' '+c+'</button>';
+        }).join('')
+      + '</div>';
+  }
+  html += '</div>';
+
+  // PARALELO: uma seção por classe ativa
+  (m.classesAtivas||['Amigo']).forEach(function(classeAtiva) {
+    var reqs = req[classeAtiva] || [];
+    var done = m.requisitos[classeAtiva] || [];
+    var datas = m.datas && m.datas[classeAtiva] || [];
+    var feitos = reqs.filter(function(_,i){return done[i];}).length;
+    var pct = reqs.length > 0 ? Math.round(feitos/reqs.length*100) : 0;
+    var prox = CLASSES_ESP[CLASSES_ESP.indexOf(classeAtiva)+1];
+    var cor = CLASSE_COR[classeAtiva] || '#FFC400';
+
+    html += '<div style="background:#141414;border:1px solid #333;border-radius:14px;padding:14px;margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      + '<div style="font-size:14px;font-weight:800;color:'+cor+'">'+(CLASSE_EMOJI[classeAtiva]||'')+ ' '+esc(classeAtiva).toUpperCase()+'</div>'
+      + '<div style="font-size:14px;font-weight:800;color:'+(pct>=100?'#4ade80':cor)+'">'+feitos+'/'+reqs.length+'</div>'
+      + '</div>'
+      + '<div style="background:#222;border-radius:6px;height:8px;margin-bottom:12px;overflow:hidden">'
+      + '<div style="background:'+(pct>=100?'#4ade80':cor)+';height:100%;width:'+pct+'%;transition:.3s"></div>'
+      + '</div>';
+
+    reqs.forEach(function(r, i){
+      var ok = !!(done[i]);
+      var dataConc = datas[i] || '';
+      var chaveReq = classeAtiva+'_'+i;
+      html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;padding:8px;background:'+(ok?'#0a1f0f':'#1a1a1a')+';border-radius:8px">'
+        + (isAdmin ? '<button onclick="toggleReqClasse(\''+classeAtiva+'\','+i+')" style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#444')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
+          : '<div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#4ade80':'transparent')+';display:flex;align-items:center;justify-content:center;color:#000;font-size:14px;font-weight:900">'+(ok?'✓':'')+'</div>')
+        + '<div style="flex:1">'
+        + '<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.75;':'')+'">' +esc(r)+'</div>'
+        + (ok && isAdmin ? '<input type="date" value="'+esc(dataConc)+'" onchange="setDataReqClasse(\''+classeAtiva+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">' : '')
+        + (ok && !isAdmin && dataConc ? '<div style="font-size:11px;color:#4ade80;margin-top:2px">✓ '+dataConc+'</div>' : '')
+        + '</div></div>';
+    });
+
+    if (pct >= 100 && prox) {
+      html += '<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:10px;padding:8px;text-align:center;margin-top:6px;font-size:13px;color:#4ade80;font-weight:700">🎉 Pronto para avançar para '+esc(prox)+'!</div>';
+    }
+    html += '</div>';
+  });
+
+  // Especialidades (visual distinto — borda dourada)
+  html += '<div style="background:#141414;border:2px solid #FFC400;border-radius:14px;padding:14px;margin-bottom:14px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    + '<div style="font-size:13px;font-weight:700;color:#FFC400">🏅 ESPECIALIDADES DE HONRA ('+m.especialidades.length+')</div>'
+    + (isAdmin?'<button onclick="adicionarEspecialidade()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar</button>':'')
+    + '</div>';
+
+  if (!m.especialidades.length) {
+    html += '<div style="color:#666;font-size:13px">Nenhuma especialidade registrada.</div>';
+  } else {
+    m.especialidades.forEach(function(e,i){
+      var nome = e.nome||e; var data = e.data||'';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:#1a1a1a;border-radius:8px;padding:8px 10px">'
+        + '<span style="font-size:16px">🏅</span>'
+        + '<div style="flex:1;font-size:13px;color:#FFC400;font-weight:600">'+esc(nome)+'</div>'
+        + (data?'<span style="font-size:11px;color:#888">'+esc(data)+'</span>':'')
+        + (isAdmin?'<button onclick="removerEsp('+i+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:0">×</button>':'')
+        + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:8px">'
+    + '<button onclick="state._espMembro=null;renderEspecialidades()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">← Voltar</button>'
+    + (isAdmin?'<button onclick="salvarMembro()" style="flex:2;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;font-size:15px">Salvar ✓</button>':'')
+    + '</div>';
+
+  $('app').innerHTML = html;
+}
+
+function toggleReqClasse(classe, idx) {
+  var m = state._espMembro; if (!m) return;
+  if (!m.requisitos[classe]) m.requisitos[classe] = [];
+  m.requisitos[classe][idx] = !m.requisitos[classe][idx];
+  if (m.requisitos[classe][idx]) {
+    if (!m.datas) m.datas = {};
+    if (!m.datas[classe]) m.datas[classe] = [];
+    if (!m.datas[classe][idx]) m.datas[classe][idx] = hoje();
+  }
+  renderFichaMembro();
+}
+
+function setDataReqClasse(classe, idx, val) {
+  var m = state._espMembro; if (!m) return;
+  if (!m.datas) m.datas = {};
+  if (!m.datas[classe]) m.datas[classe] = [];
+  m.datas[classe][idx] = val;
 }
 
 </script>
