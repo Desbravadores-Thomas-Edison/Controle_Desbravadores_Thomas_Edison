@@ -20,6 +20,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -85,6 +86,7 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 @media (min-width:1200px){
   .wrap{max-width:1100px;}
 }
+
 </style>
 </head>
 <body>
@@ -542,8 +544,8 @@ function renderReuniaoShell(){
   if(isAdmin){
     html+='<div style="display:flex;gap:6px;margin-bottom:14px">'
       +'<button class="pill'+(state.reuniaoTab==='planejar'?' on':'')+'" onclick="reuniaoTab(\'planejar\')">✏️ Planejar</button>'
-      +'<button class="pill'+(state.reuniaoTab==='provas'?' on':'')+'" onclick="reuniaoTab(\'provas\')">💡 Provas</button>'
       +'<button class="pill'+(state.reuniaoTab==='agenda'?' on':'')+'" onclick="reuniaoTab(\'agenda\')">📅 Agenda</button>'
+      +'<button class="pill'+(state.reuniaoTab==='provas'?' on':'')+'" onclick="reuniaoTab(\'provas\')">💡 Provas</button>'
       +'</div>';
   } else {
     html+='<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:12px">📅 PRÓXIMAS REUNIÕES</div>';
@@ -965,18 +967,27 @@ function compartilharAgenda(r){
   setTimeout(function(){document.body.removeChild(a);},1000);
 }
 
+function compartilharAgendaLink(el){
+  try{
+    var r=JSON.parse(decodeURIComponent(el.dataset.r));
+    compartilharAgenda(r);
+  }catch(e){alert('Erro: '+e.message);}
+}
+
 // ══ CLASSES v4 — todos veem, só instrutor edita ════════════════
 var CLASSES_ESP=['Amigo','Companheiro','Pesquisador','Pioneiro','Excursionista','Guia','Líder','Líder Master','Líder Master Avançado'];
 
 function loadEspecialidades(){
   state.view='especialidades';
+  var reqId=Date.now(); state._espReqId=reqId;
   $('app').innerHTML=header()+'<div class="load">Carregando classes…</div>';
   callAPI('getEspecialidades',{},function(r){
+    if(state._espReqId!==reqId||state.view!=='especialidades')return;
     state._esp=r;
     if(!state._espOpen)state._espOpen={};
     if(!state._espEdits)state._espEdits={};
     renderEspecialidades();
-  },function(e){erroTela('Erro: '+(e.message||e));});
+  },function(e){if(state.view==='especialidades')erroTela('Erro: '+(e.message||e));});
 }
 
 function renderEspecialidades(){
