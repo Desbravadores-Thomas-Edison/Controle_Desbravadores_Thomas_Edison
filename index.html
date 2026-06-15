@@ -23,6 +23,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -103,6 +104,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -154,9 +161,8 @@ function classeIcon(c,sz){
   sz=sz||32;
   if(LOGOS_CLASSES&&LOGOS_CLASSES[c]){
     if(c==='Pioneiro'){
-      // Borda visível para o ícone cinza que some no fundo preto
-      return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;border:2px solid #aaa;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">'
-        +'<img src="'+LOGOS_CLASSES[c]+'" style="width:100%;height:100%;object-fit:cover"></div>';
+      // box-shadow não clipa a imagem, garante anel visível
+      return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain;flex-shrink:0;border-radius:50%;box-shadow:0 0 0 2px #aaa,0 0 0 3px #333">';
     }
     return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain;flex-shrink:0">';
   }
@@ -991,14 +997,17 @@ function loadAgenda(){
   });
 }
 
+var _agIdxArr=[];
 function renderAgenda(){
+  _agIdxArr=[];
   var rs=state._agenda||[];
   var body=document.getElementById('reuniaoBody');if(!body)return;
   var html='';
   if(!rs.length){
     html='<div style="color:#666;text-align:center;padding:30px;line-height:1.8">📅 Nenhuma reunião publicada ainda.<br><span style="font-size:12px">O admin publica na aba Planejar.</span></div>';
   } else {
-    rs.forEach(function(r){
+    rs.forEach(function(r,idx){
+    _agIdxArr.push(r);
       var totalMin=(r.atividades||[]).reduce(function(s,a){return s+(a.min||0);},0);
       var ehHoje=r.publicadaData===hoje();
       html+='<div style="background:#141414;border:1px solid '+(ehHoje?'#4ade80':'#222')+';border-radius:14px;margin-bottom:14px;overflow:hidden">'
@@ -1011,7 +1020,7 @@ function renderAgenda(){
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">'
         +'<div style="font-size:14px;font-weight:800;color:'+(ehHoje?'#4ade80':'#FFC400')+'">'+r.publicadaFmt+'</div>'
         +(ehHoje?'<div style="font-size:11px;color:#4ade80;font-weight:700">● HOJE</div>':'')
-        +'<button onclick="compartilharAgenda('+JSON.stringify(r)+')" style="background:#25d36622;border:1px solid #25d366;border-radius:6px;color:#25d366;cursor:pointer;font-size:11px;padding:3px 7px;font-weight:700">📤 WA</button>'
+        +'<a href="javascript:void(0)" onclick="compartilharAgendaObj(this)" data-idx="'+idx+'" style="background:#25d366;color:#06310f;text-decoration:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;display:inline-block">WhatsApp</a>'
         +'</div></div></div>'
         // Atividades com horários calculados e linhas alternadas
         +'<div style="padding:8px 0">'
@@ -1075,6 +1084,20 @@ function compartilharAgenda(r){
 function compartilharAgendaId(idx){
   var r=_agendaMap[idx];
   if(r)compartilharAgenda(r);
+}
+
+// Mapa global de reuniões para compartilhar
+var _agIdxMap = [];
+function compartilharAgendaIdx(idx){
+  var r = _agIdxMap[idx];
+  if(r) compartilharAgenda(r);
+}
+
+function compartilharAgendaObj(el){
+  var idx=parseInt(el.dataset.idx||'0');
+  var r=_agIdxArr[idx];
+  if(r) compartilharAgenda(r);
+  else alert('Erro ao carregar dados da reunião.');
 }
 
 // ══ CLASSES v4 — todos veem, só instrutor edita ════════════════
