@@ -18,6 +18,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -60,6 +61,7 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .ptable th,.ptable td{border:1px solid var(--ln);padding:8px;font-size:13px;text-align:center;}
 .ptable th{background:#111;color:var(--am);}
 .load{color:#888;padding:20px;text-align:center;}
+
 
 
 
@@ -140,10 +142,10 @@ function header(){
     extra='<button class="pill'+(state.view==='painel'?' on':'')+'" onclick="togglePainel()">📊 Painel</button>'
       +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()">🏆 Ranking</button>'
       +'<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
-      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📛 Classes</button>';
+      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📓 Classes</button>';
   } else {
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
-      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📛 Classes</button>';
+      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📓 Classes</button>';
   }
   return '<div class="topo"><div style="display:flex;align-items:center;gap:10px">'+logo
     +'<div><div class="kicker">CLUBE DE DESBRAVADORES</div>'
@@ -176,17 +178,33 @@ function renderLista(){
 
     // Badge de classe — só mostra se classeNome estiver preenchido
     var classeBadge='';
-    if(p.classeNome&&p.classeNome.trim()){
-      var cor=CLASSE_COR[p.classeNome]||'#888';
-      classeBadge='<div style="margin-top:8px;cursor:pointer;padding:6px 8px;background:#1a1a1a;border-radius:8px;border:1px solid '+(cor+'44')+'" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit||'')+'">'
-        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
-        +classeIcon(p.classeNome,20)
-        +'<span style="font-size:12px;color:'+cor+';font-weight:700">'+esc(p.classeNome)+'</span>'
-        +'<span style="font-size:11px;color:#555;margin-left:auto">'+p.classePct+'% ›</span>'
-        +'</div>'
-        +'<div style="background:#2a2a2a;border-radius:4px;height:4px">'
-        +'<div style="background:'+cor+';height:100%;width:'+p.classePct+'%;border-radius:4px;transition:.3s"></div>'
-        +'</div></div>';
+    var temClasse=(p.classeNome&&p.classeNome.trim());
+    var temClasse2=(p.classeNome2&&p.classeNome2.trim());
+    if(temClasse||temClasse2){
+      classeBadge='<div style="margin-top:8px;cursor:pointer;padding:6px 8px;background:#1a1a1a;border-radius:8px;border:1px solid #2a2a2a" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit||'')+'">';
+      if(temClasse){
+        var cor1=CLASSE_COR[p.classeNome]||'#888';
+        classeBadge+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +classeIcon(p.classeNome,18)
+          +'<span style="font-size:11px;color:'+cor1+';font-weight:700">'+esc(p.classeNome)+'</span>'
+          +'<span style="font-size:10px;color:#555;margin-left:auto">'+p.classePct+'%</span>'
+          +'</div>'
+          +'<div style="background:#2a2a2a;border-radius:3px;height:3px;margin-bottom:'+(temClasse2?'6':'0')+'px">'
+          +'<div style="background:'+cor1+';height:100%;width:'+p.classePct+'%;border-radius:3px"></div>'
+          +'</div>';
+      }
+      if(temClasse2){
+        var cor2=CLASSE_COR[p.classeNome2]||'#888';
+        classeBadge+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +classeIcon(p.classeNome2,18)
+          +'<span style="font-size:11px;color:'+cor2+';font-weight:700">'+esc(p.classeNome2)+'</span>'
+          +'<span style="font-size:10px;color:#555;margin-left:auto">'+p.classePct2+'%</span>'
+          +'</div>'
+          +'<div style="background:#2a2a2a;border-radius:3px;height:3px">'
+          +'<div style="background:'+cor2+';height:100%;width:'+p.classePct2+'%;border-radius:3px"></div>'
+          +'</div>';
+      }
+      classeBadge+='<div style="font-size:10px;color:#444;margin-top:3px;text-align:right">› ver classe</div></div>';
     }
 
     return '<div class="card"><div class="card-top">'
@@ -408,16 +426,17 @@ function renderRanking() {
   // Ranking de unidades
   html += '<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:8px">🏆 RANKING DE UNIDADES</div>';
   r.unidades.forEach(function(u, i) {
-    var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'  '+(i+1)+'.';
+    var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
     var bg = i===0?'rgba(255,196,0,0.12)':'#141414';
+    var carr = (u.carrossel!==undefined&&u.carrossel!==null&&u.carrossel!=='') ? u.carrossel : '-';
+    var tot  = (u.total!==undefined&&u.total!==null) ? u.total : '-';
     html += '<div style="background:'+bg+';border:1px solid '+(i===0?'#FFC400':'#222')+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">'
       + '<div style="font-size:22px;width:32px;text-align:center">'+medal+'</div>'
       + '<div style="flex:1">'
-      + '<div style="font-weight:800;font-size:15px">'+u.emoji+' '+esc(u.unidade)+'</div>'
-      + '<div style="font-size:11px;color:#888;margin-top:3px">'
-      + 'Pres:'+u.presenca+' · Pont:'+u.pontualidade+' · Bíb:'+u.biblia+' · Cam:'+u.camiseta+' · Cls:'+u.classe+(u.carrossel?' · Carr:'+u.carrossel:'')
-      + '</div></div>'
-      + '<div style="font-size:24px;font-weight:800;color:#FFC400">'+u.total+'</div>'
+      + '<div style="font-weight:800;font-size:15px">'+(u.emoji||'')+ ' '+esc(u.unidade)+'</div>'
+      + '<div style="font-size:11px;color:#888;margin-top:3px">Carrossel: '+carr+' pts</div>'
+      + '</div>'
+      + '<div style="font-size:24px;font-weight:800;color:#FFC400">'+tot+'</div>'
       + '</div>';
   });
 
@@ -712,7 +731,7 @@ function renderReuniaoAtiva(){
 
   html+='<div style="display:flex;gap:8px;margin-top:8px">'
     +'<button onclick="adicionarAtividade()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">➕ Atividade</button>'
-    +'<button onclick="adicionarProvaDoBank()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">💡 Do banco</button>'
+    +'<button onclick="adicionarProvaDoBank()" style="flex:1;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;font-size:13px">📚 Acervo provas</button>'
     +'</div>'
     +'<div style="display:flex;gap:8px;margin-top:8px">'
     +'<button onclick="fecharReuniao()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer">← Voltar</button>'
@@ -884,12 +903,13 @@ function renderAgenda(){
         // Cabeçalho da reunião
         +'<div style="padding:12px 14px;border-bottom:1px solid #222">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-        +'<div><div style="font-weight:800;font-size:16px">'+esc(r.nome)+'</div>'
+        +'<div style="flex:1"><div style="font-weight:800;font-size:16px">'+esc(r.nome)+'</div>'
         +'<div style="font-size:12px;color:#aaa;margin-top:2px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' · '+totalMin+'min total</div>'
         +'</div>'
-        +'<div style="text-align:right;flex-shrink:0;margin-left:12px">'
+        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">'
         +'<div style="font-size:14px;font-weight:800;color:'+(ehHoje?'#4ade80':'#FFC400')+'">'+r.publicadaFmt+'</div>'
         +(ehHoje?'<div style="font-size:11px;color:#4ade80;font-weight:700">● HOJE</div>':'')
+        +'<button onclick="compartilharAgenda('+JSON.stringify(r)+')" style="background:#25d36622;border:1px solid #25d366;border-radius:6px;color:#25d366;cursor:pointer;font-size:11px;padding:3px 7px;font-weight:700">📤 WA</button>'
         +'</div></div></div>'
         // Atividades com horários calculados e linhas alternadas
         +'<div style="padding:8px 0">'
@@ -898,6 +918,21 @@ function renderAgenda(){
     });
   }
   body.innerHTML=html;
+}
+
+function compartilharAgenda(r){
+  function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
+  function toTime(m){return (m<600?'0':'')+Math.floor(m/60)%24+':'+((m%60)<10?'0':'')+(m%60);}
+  var msg='📅 *'+r.nome+'*\n';
+  msg+=r.tipo+' · '+r.publicadaFmt+'\n';
+  msg+=r.inicio+' → '+r.fim+'\n\n';
+  var cursor=toMin(r.inicio);
+  (r.atividades||[]).forEach(function(a){
+    msg+='*'+toTime(cursor)+'* '+a.nome+' ('+a.min+'min)\n';
+    cursor+=parseInt(a.min)||0;
+  });
+  msg+='\n_Clube de Desbravadores Thomas Edison_ 💡';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
 // ══ CLASSES v4 — todos veem, só instrutor edita ════════════════
@@ -923,7 +958,7 @@ function renderEspecialidades(){
   var html=header();
 
   // Título com logo do clube
-  var clubeLogo=LOGOS_CLASSES&&LOGOS_CLASSES['clube']?'<img src="'+LOGOS_CLASSES['clube']+'" style="width:28px;height:28px;object-fit:contain;margin-right:6px;vertical-align:middle">':'📛';
+  var clubeLogo=LOGOS_CLASSES&&LOGOS_CLASSES['clube']?'<img src="'+LOGOS_CLASSES['clube']+'" style="width:28px;height:28px;object-fit:contain;margin-right:6px;vertical-align:middle">':'📓';
   html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">'
     +'<span style="vertical-align:middle">'+clubeLogo+'</span>'
     +'<span style="font-size:14px;font-weight:800;color:#FFC400;letter-spacing:1px">CLASSES</span>'
