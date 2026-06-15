@@ -21,6 +21,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -87,6 +88,14 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
   .wrap{max-width:1100px;}
 }
 
+
+/* Pills row - scroll horizontal */
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+/* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -130,46 +139,49 @@ function callAPI(action,params,onSuccess,onFailure){
 var TOKEN=(typeof _TK!=='undefined'&&_TK)?_TK:((location.search.match(/[?&]k=([^&]*)/)||[])[1]||'');
 var CTX=null;
 var COLS=[['presenca','Presença'],['pontualidade','Pontualidade'],['biblia','Bíblia'],['camiseta','Camiseta'],['classe','Classe']];
-var state={unit:null,date:hoje(),rows:[],jaSalvo:false,view:'controle'};
-
-// Cores e ícones oficiais
+var state={unit:null,date:hoje(),rows:[],jaSalvo:false,view:'controle',settings:{classesVisiveis:{},rankingVisivel:true}};
 var CLASSE_COR={'Amigo':'#1a6fdb','Companheiro':'#d92b2b','Pesquisador':'#1a9e3f','Pioneiro':'#888','Excursionista':'#8b2fc9','Guia':'#d4b800','Líder':'#60a5fa','Líder Master':'#818cf8','Líder Master Avançado':'#e879f9'};
 var EMOJI={'Leão':'🦁','Panda':'🐼','Tigre':'🐯','Puma':'🐆'};
 
 function classeIcon(c,sz){
   sz=sz||32;
-  if(LOGOS_CLASSES&&LOGOS_CLASSES[c])return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain">';
+  if(LOGOS_CLASSES&&LOGOS_CLASSES[c]){
+    var border=c==='Pioneiro'?'border:2px solid #666;border-radius:50%;':'';
+    return '<img src="'+LOGOS_CLASSES[c]+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain;'+border+'">';
+  }
   var cor=CLASSE_COR[c]||'#888';
   return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+cor+';display:inline-flex;align-items:center;justify-content:center;font-size:'+(sz*0.5)+'px">⭐</div>';
 }
 
-// ── cabeçalho ─────────────────────────────────────────────────
+// ── cabeçalho com scroll horizontal ──────────────────────────
 function header(){
   var logo=(LOGOS&&LOGOS.clube)?'<img src="'+LOGOS.clube+'" style="height:52px;flex-shrink:0;">':'';
-  var dt='<input type="date" id="dt" value="'+state.date+'">';
+  var dt='<input type="date" id="dt" value="'+state.date+'" style="background:#141414;border:1px solid #333;color:#fff;border-radius:10px;padding:8px 10px;font-size:14px;flex-shrink:0">';
   var pills='';
-  // FIX: pill só "on" em view='controle' E unidade correta
   if(CTX&&CTX.units&&CTX.units.length>0){
     pills=CTX.units.map(function(u){
       var on=(state.view==='controle'&&u===state.unit)?' on':'';
-      return '<button class="pill'+on+'" onclick="pickUnit(this.dataset.u)" data-u="'+esc(u)+'">'+(EMOJI[u]||'')+' '+esc(u)+'</button>';
+      return '<button class="pill'+on+'" onclick="pickUnit(this.dataset.u)" data-u="'+esc(u)+'" style="white-space:nowrap">'+(EMOJI[u]||'')+' '+esc(u)+'</button>';
     }).join('');
   }
   var extra='';
   if(CTX&&CTX.role==='admin'){
-    extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
-      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📓 Classes</button>'
-      +'<button class="pill'+(state.view==='painel'?' on':'')+'" onclick="togglePainel()">📊 Painel</button>'
-      +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()">🏆 Ranking</button>';
+    extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
+      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
+      +'<button class="pill'+(state.view==='painel'?' on':'')+'" onclick="togglePainel()" style="white-space:nowrap">📊 Painel</button>'
+      +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()" style="white-space:nowrap">🏆 Ranking</button>';
   } else {
-    extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
-      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">📓 Classes</button>';
+    extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
+      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>';
   }
   return '<div class="topo"><div style="display:flex;align-items:center;gap:10px">'+logo
     +'<div><div class="kicker">CLUBE DE DESBRAVADORES</div>'
     +'<div class="titulo">THOMAS EDISON 💡</div></div></div>'
     +'<div class="quem">Olá, '+esc(CTX?CTX.apelido:'')+'</div></div>'
-    +'<div class="controls">'+pills+extra+dt+'</div>';
+    // Scroll horizontal: pills + data numa linha rolante
+    +'<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:4px" class="pills-row">'
+    +pills+extra+dt
+    +'</div>';
 }
 
 function statsHtml(){
@@ -182,7 +194,7 @@ function statsHtml(){
     +'</div>';
 }
 
-// ── lista: badge de classe abaixo dos checks ─────────────────
+// ── lista com badges de classe ────────────────────────────────
 function renderLista(){
   var el=$('lista');if(!el)return;
   if(!state.unit){el.innerHTML='<div class="hint">Escolha uma unidade acima.</div>';return;}
@@ -194,32 +206,32 @@ function renderLista(){
     var tag=p.tipo==='Visita'?'<span class="tag">HOJE</span><button class="rmv" onclick="rmv(this.dataset.i)" data-i="'+i+'">×</button>':'';
     var just=justNeed?'<input class="just" placeholder="Justificativa faltas e atrasos (opcional)" value="'+esc(p.justificativa||'')+'" oninput="setJ(this.dataset.i,this.value)" data-i="'+i+'">':'';
 
-    // Badge de classe — só mostra se classeNome estiver preenchido
+    // Badges de classe (uma ou duas)
     var classeBadge='';
-    var temClasse=(p.classeNome&&p.classeNome.trim());
-    var temClasse2=(p.classeNome2&&p.classeNome2.trim());
-    if(temClasse||temClasse2){
-      classeBadge='<div style="margin-top:8px;cursor:pointer;padding:6px 8px;background:#1a1a1a;border-radius:8px;border:1px solid #2a2a2a" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit||'')+'">';
-      if(temClasse){
-        var cor1=CLASSE_COR[p.classeNome]||'#888';
+    var t1=(p.classeNome&&p.classeNome.trim());
+    var t2=(p.classeNome2&&p.classeNome2.trim());
+    if(t1||t2){
+      classeBadge='<div style="margin-top:8px;padding:6px 8px;background:#1a1a1a;border-radius:8px;border:1px solid #2a2a2a;cursor:pointer" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit,this.dataset.classe)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit||'')+'" data-classe="'+esc(p.classeNome||p.classeNome2||'')+'">';
+      if(t1){
+        var c1=CLASSE_COR[p.classeNome]||'#888';
         classeBadge+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
           +classeIcon(p.classeNome,18)
-          +'<span style="font-size:11px;color:'+cor1+';font-weight:700">'+esc(p.classeNome)+'</span>'
+          +'<span style="font-size:11px;color:'+c1+';font-weight:700">'+esc(p.classeNome)+'</span>'
           +'<span style="font-size:10px;color:#555;margin-left:auto">'+p.classePct+'%</span>'
           +'</div>'
-          +'<div style="background:#2a2a2a;border-radius:3px;height:3px;margin-bottom:'+(temClasse2?'6':'0')+'px">'
-          +'<div style="background:'+cor1+';height:100%;width:'+p.classePct+'%;border-radius:3px"></div>'
+          +'<div style="background:#2a2a2a;border-radius:3px;height:3px'+(t2?';margin-bottom:6px':'')+'">'
+          +'<div style="background:'+c1+';height:100%;width:'+p.classePct+'%;border-radius:3px"></div>'
           +'</div>';
       }
-      if(temClasse2){
-        var cor2=CLASSE_COR[p.classeNome2]||'#888';
+      if(t2){
+        var c2=CLASSE_COR[p.classeNome2]||'#888';
         classeBadge+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
           +classeIcon(p.classeNome2,18)
-          +'<span style="font-size:11px;color:'+cor2+';font-weight:700">'+esc(p.classeNome2)+'</span>'
+          +'<span style="font-size:11px;color:'+c2+';font-weight:700">'+esc(p.classeNome2)+'</span>'
           +'<span style="font-size:10px;color:#555;margin-left:auto">'+p.classePct2+'%</span>'
           +'</div>'
           +'<div style="background:#2a2a2a;border-radius:3px;height:3px">'
-          +'<div style="background:'+cor2+';height:100%;width:'+p.classePct2+'%;border-radius:3px"></div>'
+          +'<div style="background:'+c2+';height:100%;width:'+p.classePct2+'%;border-radius:3px"></div>'
           +'</div>';
       }
       classeBadge+='<div style="font-size:10px;color:#444;margin-top:3px;text-align:right">› ver classe</div></div>';
@@ -235,17 +247,15 @@ function renderLista(){
 function abrirClasseMembro(nome,unit,classeAlvo){
   state.view='especialidades';
   $('app').innerHTML=header()+'<div class="load">Carregando…</div>';
+  var reqId=Date.now(); state._espReqId=reqId;
   callAPI('getEspecialidades',{},function(r){
+    if(state._espReqId!==reqId||state.view!=='especialidades')return;
     state._esp=r;
     state._espOpen=state._espOpen||{};
-    // Expandir a classe alvo e o membro específico
     var classesParaAbrir=classeAlvo?[classeAlvo]:Object.keys(r.classesMembros||{});
     classesParaAbrir.forEach(function(classe){
       var found=(r.classesMembros[classe]||[]).find(function(x){return x.nome===nome&&x.unidade===unit;});
-      if(found){
-        state._espOpen['_classe_'+classe]=true; // abre a classe
-        state._espOpen[unit+'|'+nome]=true;     // abre o membro
-      }
+      if(found){state._espOpen['_classe_'+classe]=true;state._espOpen[unit+'|'+nome]=true;}
     });
     renderEspecialidades();
   },function(e){erroTela('Erro: '+(e.message||e));});
@@ -267,7 +277,8 @@ function render(){
   var aviso=state.jaSalvo?'<div class="aviso">⚠️ Controle já enviado hoje — reenviar irá substituir.</div>':'';
   var html=header()+banner
     +'<div id="lista"></div>'
-    +'<div class="addrow"><input id="vis" placeholder="Nome de visitante (some amanhã)">'
+    // #5: placeholder sem "(some amanhã)"
+    +'<div class="addrow"><input id="vis" placeholder="Nome do visitante">'
     +'<button class="addbtn" onclick="addVisita()">+ Visita</button></div>'
     +statsHtml()+aviso
     +'<button class="enviar" id="env" onclick="enviar()">Enviar ✓</button>'
@@ -289,7 +300,7 @@ function setJ(i,v){state.rows[parseInt(i)].justificativa=v;}
 function rmv(i){state.rows.splice(parseInt(i),1);renderLista();refreshStats();}
 function addVisita(){
   var el=$('vis');var nome=(el.value||'').trim();if(!nome)return;
-  state.rows.push({nome:nome+' (visita)',tipo:'Visita',presenca:false,pontualidade:false,biblia:false,camiseta:false,classe:false,justificativa:''});
+  state.rows.push({nome:nome,tipo:'Visita',presenca:false,pontualidade:false,biblia:false,camiseta:false,classe:false,justificativa:''});
   el.value='';renderLista();refreshStats();
 }
 
@@ -374,34 +385,34 @@ function loadReuniaoPublicada(){
     el.innerHTML='<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:14px;padding:14px;margin-bottom:14px">'
       +'<div style="font-size:11px;color:#4ade80;font-weight:700;margin-bottom:4px">📋 REUNIÃO — '+esc(re.tipo)+' · '+re.inicio+' → '+re.fim+'</div>'
       +'<div style="font-weight:800;font-size:15px;margin-bottom:8px">'+esc(re.nome)+'</div>'
-      +calcAgendaHtml(re.inicio,re.atividades,true)
-      +'</div>';
+      +calcAgendaHtml(re.inicio,re.atividades,true)+'</div>';
   },function(){});
 }
 
-// Calcula horários e gera HTML da agenda
-function calcAgendaHtml(inicio,atividades,compact){
-  function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
-  function toTime(m){return pad(Math.floor(m/60)%24)+':'+pad(m%60);}
-  var cursor=toMin(inicio);
-  var html='';
-  (atividades||[]).forEach(function(a,i){
-    var startTime=toTime(cursor);
-    cursor+=parseInt(a.min)||0;
-    var bg=i%2===0?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.07)';
-    if(compact){
-      html+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 6px;background:'+bg+';border-radius:4px">'
-        +'<span><span style="color:#666;font-size:11px;margin-right:6px">'+startTime+'</span>'+esc(a.nome)+'</span>'
-        +'<span style="color:#4ade80;font-weight:700;flex-shrink:0;margin-left:8px">'+a.min+'min</span></div>';
-    } else {
-      html+='<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:'+bg+';border-radius:6px;margin-bottom:4px">'
-        +'<div style="font-size:13px;font-weight:700;color:#FFC400;flex-shrink:0;width:40px">'+startTime+'</div>'
-        +'<div style="flex:1;font-size:14px">'+esc(a.nome)+'</div>'
-        +'<div style="font-size:13px;color:#888;flex-shrink:0">'+a.min+'min</div>'
-        +'</div>';
-    }
-  });
-  return html;
+// Settings helpers
+function isClasseVisivelParaTodos(classe){
+  var s=state.settings;
+  if(!s||!s.classesVisiveis)return true;
+  if(s.classesVisiveis[classe]===undefined)return true; // padrão: visível
+  return s.classesVisiveis[classe];
+}
+function isRankingVisivel(){
+  return !state.settings||state.settings.rankingVisivel!==false;
+}
+function toggleClasseVisibilidade(classe){
+  var atual=isClasseVisivelParaTodos(classe);
+  var novoVal=!atual;
+  state.settings.classesVisiveis[classe]=novoVal;
+  callAPI('saveSettings',{key:'classe_'+classe,value:novoVal},function(){
+    renderEspecialidades();
+  },function(e){alert('Erro ao salvar: '+(e.message||e));});
+}
+function toggleRankingVisibilidade(){
+  var novoVal=!isRankingVisivel();
+  state.settings.rankingVisivel=novoVal;
+  callAPI('saveSettings',{key:'rankingVisivel',value:novoVal},function(){
+    loadRanking();
+  },function(e){alert('Erro ao salvar: '+(e.message||e));});
 }
 
 function startApp(){
@@ -409,6 +420,8 @@ function startApp(){
     function(ctx){
       CTX=ctx;state.date=CTX.hoje||hoje();
       if(!CTX.ok){erroTela('Link inválido ou expirado.<br>Peça um novo link ao administrador.');return;}
+      // Carregar settings
+      callAPI('getSettings',{},function(s){state.settings=s||state.settings;},function(){});
       if(CTX.units.length===1){state.unit=CTX.units[0];loadRoster();}
       else render();
     },
@@ -435,6 +448,21 @@ function renderRanking() {
   var r = state._ranking;
   if (!r) return;
   var html = header();
+
+  // Botão de visibilidade do ranking (só admin)
+  var isAdmin=CTX&&CTX.role==='admin';
+  if(isAdmin){
+    var rankVis=isRankingVisivel();
+    html+='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
+      +'<button onclick="toggleRankingVisibilidade()" style="background:none;border:1px solid #333;border-radius:8px;color:#aaa;cursor:pointer;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px">'
+      +(rankVis?'👁️ Visível para todos':'🙈 Só para admin')+'</button></div>';
+  }
+
+  // Mostrar aviso se ranking está oculto para não-admin
+  if(!isAdmin&&!isRankingVisivel()){
+    $('app').innerHTML=header()+'<div style="color:#666;text-align:center;padding:40px;font-size:14px">📊 Ranking não disponível no momento.</div>';
+    return;
+  }
 
   // Filtro de período
   html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:14px">'
@@ -902,6 +930,7 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
+var _agendaMap={};
 // Patch: substitui loadAgenda e renderAgenda com horários calculados e linhas alternadas
 function loadAgenda(){
   callAPI('getReunioesPublicadas',{},function(r){
@@ -943,7 +972,7 @@ function renderAgenda(){
   body.innerHTML=html;
 }
 
-function compartilharAgenda(r){
+function _buildMsgWA(r){
   function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
   function toTime(m){var h=Math.floor(m/60)%24,mm=m%60;return(h<10?'0':'')+h+'h'+(mm<10?'0':'')+mm;}
   var msg='';
@@ -972,6 +1001,30 @@ function compartilharAgendaLink(el){
     var r=JSON.parse(decodeURIComponent(el.dataset.r));
     compartilharAgenda(r);
   }catch(e){alert('Erro: '+e.message);}
+}
+
+// Fix definitivo do share WA: link direto sem popup
+function compartilharAgenda(r){
+  function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
+  function toTime(m){var h=Math.floor(m/60)%24,mm=m%60;return(h<10?'0':'')+h+'h'+(mm<10?'0':'')+mm;}
+  var msg='╔══ *PROGRAMAÇÃO* ══╗\n';
+  msg+='📅 *'+r.publicadaFmt+'* — '+r.tipo+'\n';
+  msg+='⏰ '+r.inicio+' → '+r.fim+'\n';
+  msg+='📋 *'+r.nome+'*\n';
+  msg+='╚═════════════════╝\n\n';
+  var cursor=toMin(r.inicio);
+  (r.atividades||[]).forEach(function(a){
+    msg+='*'+toTime(cursor)+'* → '+a.nome+' _('+a.min+'min)_\n';
+    cursor+=parseInt(a.min)||0;
+  });
+  msg+='\n🏁 Término: *'+toTime(cursor)+'*\n';
+  msg+='\n_💡 Clube Thomas Edison_';
+  window.location.href='https://wa.me/?text='+encodeURIComponent(msg);
+}
+
+function compartilharAgendaId(idx){
+  var r=_agendaMap[idx];
+  if(r)compartilharAgenda(r);
 }
 
 // ══ CLASSES v4 — todos veem, só instrutor edita ════════════════
@@ -1013,6 +1066,9 @@ function renderEspecialidades(){
   }
 
   todasClasses.forEach(function(classe){
+    // Se não é admin e não é instrutor desta classe, verifica se está visível
+    var isInstrutor=instructorClasses&&instructorClasses.indexOf(classe)>=0;
+    if(!isAdmin&&!isInstrutor&&!isClasseVisivelParaTodos(classe))return;
     var membros=cm[classe]||[];
     var cor=CLASSE_COR[classe]||'#888';
     var reqs=d.requisitos[classe]||[];
@@ -1025,9 +1081,11 @@ function renderEspecialidades(){
       +'<span>'+classeIcon(classe,32)+'</span>'
       +'<div style="flex:1">'
       +'<div style="font-size:15px;font-weight:800;color:'+cor+'">'+esc(classe)+'</div>'
-      +'<div style="font-size:12px;color:#aaa">'+membros.length+' membro'+(membros.length!==1?'s':'')+' · '+reqs.length+' requisitos'+(podeEditar?'':' · somente leitura')+'</div>'
+      +'<div style="font-size:12px;color:#aaa">'+membros.length+' membro'+(membros.length!==1?'s':'')+' · '+reqs.length+' requisitos</div>'
       +'</div>'
-      +'<div style="font-size:20px;color:'+cor+';transform:'+(isClasseOpen?'rotate(180deg)':'rotate(0)')+';transition:.2s">▼</div>'
+      // Botão olho (só admin): controla visibilidade para não-instrutores
+      +(isAdmin?'<button onclick="event.stopPropagation();toggleClasseVisibilidade(this.dataset.c)" data-c="'+esc(classe)+'" title="Visibilidade" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;opacity:'+(isClasseVisivelParaTodos(classe)?'1':'0.4')+'">'+(isClasseVisivelParaTodos(classe)?'👁️':'🙈')+'</button>':'')
+      +'<div style="font-size:20px;color:'+cor+';transform:'+(isClasseOpen?'rotate(180deg)':'rotate(0)')+';transition:.2s;margin-left:4px">▼</div>'
       +'</div>';
 
     if(isClasseOpen){
