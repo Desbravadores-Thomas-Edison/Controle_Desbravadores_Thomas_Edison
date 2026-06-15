@@ -15,6 +15,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -62,6 +63,7 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 
 
 
+
 </style>
 </head>
 <body>
@@ -75,25 +77,15 @@ var LOGOS = {
   'Leão': 'data:image/jpeg;base64,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',
 };
 
-// ── configuração ──────────────────────────────────────────────
 var GAS_URL='https://script.google.com/macros/s/AKfycbwiTKTeVmjR0WX2K7n5zqfDrWpsSp1884lNT4PJ-NRXnHKkaa0Q8tYf5NI3kKwfrRZs/exec';
 
-// ── utilitários ───────────────────────────────────────────────
 function $(id){return document.getElementById(id);}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function pad(n){return n<10?'0'+n:String(n);}
 function hoje(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fmtBR(s){if(!s)return'';var p=String(s).substring(0,10).split('-');if(p.length===3&&p[0].length===4)return p[2]+'/'+p[1]+'/'+p[0];return s;}
 function erroTela(msg){$('app').innerHTML='<div style="color:#e88;padding:20px;font-size:13px;line-height:1.6">'+msg+'<br><br><a href="javascript:location.reload()" style="color:#FFC400">⟳ Recarregar</a></div>';}
 
-// Formatar yyyy-MM-dd → dd/MM/yyyy
-function fmtBR(s){
-  if(!s)return'';
-  var p=String(s).substring(0,10).split('-');
-  if(p.length===3&&p[0].length===4)return p[2]+'/'+p[1]+'/'+p[0];
-  return s;
-}
-
-// ── fetch API ─────────────────────────────────────────────────
 function callAPI(action,params,onSuccess,onFailure){
   var body=JSON.stringify(Object.assign({action:action,token:TOKEN},params||{}));
   fetch(GAS_URL,{method:'POST',body:body})
@@ -102,25 +94,22 @@ function callAPI(action,params,onSuccess,onFailure){
     .catch(function(e){onFailure(e);});
 }
 
-// ── token e estado ────────────────────────────────────────────
 var TOKEN=(typeof _TK!=='undefined'&&_TK)?_TK:((location.search.match(/[?&]k=([^&]*)/)||[])[1]||'');
 var CTX=null;
 var COLS=[['presenca','Presença'],['pontualidade','Pontualidade'],['biblia','Bíblia'],['camiseta','Camiseta'],['classe','Classe']];
 var state={unit:null,date:hoje(),rows:[],jaSalvo:false,view:'controle'};
 
-// ── cabeçalho ─────────────────────────────────────────────────
+// ── cabeçalho: pill de unidade só "on" no controle ───────────
 function header(){
   var logo=(LOGOS&&LOGOS.clube)?'<img src="'+LOGOS.clube+'" style="height:52px;flex-shrink:0;">':'';
   var dt='<input type="date" id="dt" value="'+state.date+'">';
   var pills='';
-  if(CTX&&CTX.units&&CTX.units.length>1){
+  if(CTX&&CTX.units&&CTX.units.length>0){
     pills=CTX.units.map(function(u){
-      var on=u===state.unit?' on':'';
+      // só "on" quando view='controle' E é a unidade selecionada
+      var on=(u===state.unit&&state.view==='controle')?' on':'';
       return '<button class="pill'+on+'" onclick="pickUnit(this.dataset.u)" data-u="'+esc(u)+'">'+esc(u)+'</button>';
     }).join('');
-  } else if(CTX&&CTX.units&&CTX.units.length===1){
-    var u=CTX.units[0];
-    pills='<button class="pill'+(u===state.unit?' on':'')+'" onclick="pickUnit(this.dataset.u)" data-u="'+esc(u)+'">'+esc(u)+'</button>';
   }
   var extra='';
   if(CTX&&CTX.role==='admin'){
@@ -129,7 +118,6 @@ function header(){
       +'<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">⭐ Classes</button>';
   } else {
-    // Conselheiros e instrutores veem Reunião e Classes
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()">⭐ Classes</button>';
   }
@@ -140,7 +128,6 @@ function header(){
     +'<div class="controls">'+pills+extra+dt+'</div>';
 }
 
-// ── stats ─────────────────────────────────────────────────────
 function statsHtml(){
   var p=0,a=0,au=0;
   state.rows.forEach(function(r){if(!r.presenca)au++;else if(!r.pontualidade)a++;else p++;});
@@ -151,7 +138,7 @@ function statsHtml(){
     +'</div>';
 }
 
-// ── lista com 6º campo de classe ─────────────────────────────
+// ── lista com badge de classe abaixo dos 5 checks ────────────
 function renderLista(){
   var el=$('lista');if(!el)return;
   if(!state.unit){el.innerHTML='<div class="hint">Escolha uma unidade acima.</div>';return;}
@@ -160,34 +147,47 @@ function renderLista(){
     var checks=COLS.map(function(c){
       return '<button class="chk'+(p[c[0]]?' on':'')+'" onclick="tog(this.dataset.i,this.dataset.k)" data-i="'+i+'" data-k="'+c[0]+'">'+(p[c[0]]?'✓ ':'')+c[1]+'</button>';
     }).join('');
-    // 6º campo: progresso de classe (não clicável)
-    var classeField='';
-    if(p.classeNome){
-      var cor=p.classePct>=100?'#4ade80':p.classePct>=50?'#FFC400':'#888';
-      classeField='<button class="chk" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit)+'" style="border-color:'+cor+';color:'+cor+';font-size:10px;padding:6px 2px;cursor:pointer" title="Ver classe">'
-        +esc(p.classeNome.substring(0,4))+'<br>'+p.classePct+'%</button>';
-    }
     var tag=p.tipo==='Visita'?'<span class="tag">HOJE</span><button class="rmv" onclick="rmv(this.dataset.i)" data-i="'+i+'">×</button>':'';
     var just=justNeed?'<input class="just" placeholder="Justificativa (opcional)" value="'+esc(p.justificativa||'')+'" oninput="setJ(this.dataset.i,this.value)" data-i="'+i+'">':'';
+
+    // Badge de classe — nome completo + barra de progresso
+    var classeBadge='';
+    if(p.classeNome){
+      var cor=p.classePct>=100?'#4ade80':p.classePct>=50?'#FFC400':'#888';
+      var emoji=CLASSE_EMOJI&&CLASSE_EMOJI[p.classeNome]?CLASSE_EMOJI[p.classeNome]:'⭐';
+      classeBadge='<div style="margin-top:8px;cursor:pointer" onclick="abrirClasseMembro(this.dataset.nome,this.dataset.unit)" data-nome="'+esc(p.nome)+'" data-unit="'+esc(state.unit||'')+'">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
+        +'<span style="font-size:12px;color:'+cor+';font-weight:700">'+emoji+' '+esc(p.classeNome)+'</span>'
+        +'<span style="font-size:11px;color:'+cor+'">'+p.classePct+'%</span>'
+        +'</div>'
+        +'<div style="background:#2a2a2a;border-radius:4px;height:4px">'
+        +'<div style="background:'+cor+';height:100%;width:'+p.classePct+'%;border-radius:4px;transition:.3s"></div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#555;margin-top:2px">Toque para ver classe ›</div>'
+        +'</div>';
+    }
+
     return '<div class="card"><div class="card-top">'
-      +'<div class="nome"><b style="cursor:pointer;text-decoration:underline;text-underline-offset:2px" onclick="abrirClasseMembro(\''+esc(p.nome)+'\',\''+esc(state.unit||'')+'\')" title="Ver classe">'+esc(p.nome)+'</b>'+tag+'</div>'
-      +'<div class="checks">'+checks+classeField+'</div></div>'+just+'</div>';
+      +'<div class="nome"><b>'+esc(p.nome)+'</b>'+tag+'</div>'
+      +'<div class="checks">'+checks+'</div></div>'
+      +classeBadge+just+'</div>';
   }).join('');
 }
 
 function abrirClasseMembro(nome,unit){
-  // Carrega classes e abre ficha diretamente
   state.view='especialidades';
-  $('app').innerHTML=header()+'<div class="load">Carregando ficha…</div>';
+  $('app').innerHTML=header()+'<div class="load">Carregando…</div>';
   callAPI('getEspecialidades',{},function(r){
-    state._esp=r; state._espMembro=null;
-    var m=(r.membros||[]).find(function(x){return x.nome===nome&&x.unidade===unit;});
-    if(m){state._espMembro=JSON.parse(JSON.stringify(m));renderFichaMembro();}
-    else renderEspecialidades();
+    state._esp=r;
+    state._espOpen=state._espOpen||{};
+    Object.keys(r.classesMembros||{}).forEach(function(classe){
+      var found=(r.classesMembros[classe]||[]).find(function(x){return x.nome===nome&&x.unidade===unit;});
+      if(found)state._espOpen[unit+'|'+nome]=true;
+    });
+    renderEspecialidades();
   },function(e){erroTela('Erro: '+(e.message||e));});
 }
 
-// ── render principal ──────────────────────────────────────────
 function render(){
   if(!CTX||!CTX.ok){erroTela('Acesso inválido. Use o seu link pessoal.');return;}
   if(state.view==='painel'){renderPainel();return;}
@@ -220,7 +220,6 @@ function refreshStats(){
   if(old){var tmp=document.createElement('div');tmp.innerHTML=statsHtml();old.parentNode.replaceChild(tmp.firstChild,old);}
 }
 
-// ── ações ─────────────────────────────────────────────────────
 function pickUnit(u){state.unit=u;state.view='controle';loadRoster();}
 function tog(i,k){state.rows[parseInt(i)][k]=!state.rows[parseInt(i)][k];renderLista();refreshStats();}
 function setJ(i,v){state.rows[parseInt(i)].justificativa=v;}
@@ -231,7 +230,6 @@ function addVisita(){
   el.value='';renderLista();refreshStats();
 }
 
-// ── modal de confirmação ──────────────────────────────────────
 function mostrarConfirm(titulo,msg,onOk){
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box';
@@ -248,7 +246,6 @@ function mostrarConfirm(titulo,msg,onOk){
   document.getElementById('_ok_').onclick=function(){document.body.removeChild(ov);onOk();};
 }
 
-// ── envio ─────────────────────────────────────────────────────
 function enviar(){
   if(!state.unit){alert('Escolha uma unidade.');return;}
   if(state.jaSalvo){mostrarConfirm('⚠️ Controle já enviado hoje','Deseja substituir o controle enviado anteriormente?',function(){_doEnviar();});return;}
@@ -270,7 +267,6 @@ function _doEnviar(){
   );
 }
 
-// ── painel (admin) ────────────────────────────────────────────
 function togglePainel(){
   state.view=state.view==='painel'?'controle':'painel';
   if(state.view==='painel')loadPainel();
@@ -296,7 +292,6 @@ function renderPainel(){
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadPainel();});
 }
 
-// ── carrega lista ─────────────────────────────────────────────
 function loadRoster(){
   if(!state.unit){render();return;}
   $('app').innerHTML=header()+'<div class="load">Carregando lista…</div>';
@@ -307,26 +302,21 @@ function loadRoster(){
   );
 }
 
-// ── reunião publicada (card verde na tela) ────────────────────
 function loadReuniaoPublicada(){
   callAPI('getReuniaoPublicada',{date:state.date},function(r){
-    state._reuniaoHoje=r.reuniao;
-    var el=$('_rcard_');
-    if(!el||!r.reuniao)return;
+    var el=$('_rcard_');if(!el||!r.reuniao)return;
     var re=r.reuniao;
     var totalMin=(re.atividades||[]).reduce(function(s,a){return s+(a.min||0);},0);
     el.innerHTML='<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:14px;padding:14px;margin-bottom:14px">'
       +'<div style="font-size:11px;color:#4ade80;font-weight:700;margin-bottom:4px">📋 REUNIÃO PUBLICADA — '+esc(re.tipo)+' · '+re.inicio+' → '+re.fim+' · '+totalMin+'min</div>'
       +'<div style="font-weight:800;font-size:15px;margin-bottom:8px">'+esc(re.nome)+'</div>'
       +(re.atividades||[]).map(function(a){
-        return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #1a3a22">'
+        return'<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #1a3a22">'
           +'<span>'+esc(a.nome)+'</span><span style="color:#4ade80;font-weight:700">'+a.min+'min</span></div>';
-      }).join('')
-      +'</div>';
+      }).join('')+'</div>';
   },function(){});
 }
 
-// ── inicialização ─────────────────────────────────────────────
 function startApp(){
   callAPI('getCtx',{},
     function(ctx){
@@ -824,369 +814,170 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ══════════════════════════════════════════════════════════════
-// MÓDULO ESPECIALIDADES E PROGRESSÃO DE CLASSE v2
-// ══════════════════════════════════════════════════════════════
-var CLASSES_ESP = [
-  'Amigo','Companheiro','Pesquisador','Pioneiro','Excelsior',
-  'Guia','Líder','Líder Master','Líder Master Avançado'
-];
-var CLASSE_EMOJI = {
-  'Amigo':'🌱','Companheiro':'🌿','Pesquisador':'🔍','Pioneiro':'⚡',
-  'Excelsior':'🌟','Guia':'🧭','Líder':'👑','Líder Master':'🏅',
-  'Líder Master Avançado':'🎖️'
-};
-var CLASSE_COR = {
-  'Amigo':'#4ade80','Companheiro':'#22d3ee','Pesquisador':'#a78bfa',
-  'Pioneiro':'#fb923c','Excelsior':'#FFC400','Guia':'#f472b6',
-  'Líder':'#60a5fa','Líder Master':'#818cf8','Líder Master Avançado':'#e879f9'
-};
+// ══ CLASSES v3 — por classe, accordion ════════════════════════
+var CLASSES_ESP = ['Amigo','Companheiro','Pesquisador','Pioneiro','Excelsior','Guia','Líder','Líder Master','Líder Master Avançado'];
+var CLASSE_EMOJI = {'Amigo':'🌱','Companheiro':'🌿','Pesquisador':'🔍','Pioneiro':'⚡','Excelsior':'🌟','Guia':'🧭','Líder':'👑','Líder Master':'🏅','Líder Master Avançado':'🎖️'};
+var CLASSE_COR   = {'Amigo':'#4ade80','Companheiro':'#22d3ee','Pesquisador':'#a78bfa','Pioneiro':'#fb923c','Excelsior':'#FFC400','Guia':'#f472b6','Líder':'#60a5fa','Líder Master':'#818cf8','Líder Master Avançado':'#e879f9'};
 
-function loadEspecialidades() {
-  state.view = 'especialidades';
-  $('app').innerHTML = header() + '<div class="load">Carregando fichas…</div>';
-  callAPI('getEspecialidades', {}, function(r){
-    state._esp = r;
-    state._espMembro = null;
+function loadEspecialidades(){
+  state.view='especialidades';
+  $('app').innerHTML=header()+'<div class="load">Carregando classes…</div>';
+  callAPI('getEspecialidades',{},function(r){
+    state._esp=r;
+    state._espOpen=state._espOpen||{};
+    state._espEdits=state._espEdits||{};
     renderEspecialidades();
-  }, function(e){ erroTela('Erro: '+(e.message||e)); });
+  },function(e){erroTela('Erro: '+(e.message||e));});
 }
 
-function renderEspecialidades() {
-  var d = state._esp;
-  if (!d) return;
-  if (state._espMembro) { renderFichaMembro(); return; }
+function renderEspecialidades(){
+  var d=state._esp;if(!d)return;
+  var html=header();
+  var cm=d.classesMembros||{};
+  var classes=Object.keys(cm);
 
-  var html = header();
-  html += '<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:12px">⭐ ESPECIALIDADES E CLASSES</div>';
+  if(!classes.length){
+    html+='<div style="color:#666;text-align:center;padding:30px;line-height:1.8">Nenhum membro encontrado.<br><span style="font-size:12px">Verifique a coluna D (Classe) na aba Cadastro.</span></div>';
+    $('app').innerHTML=html;return;
+  }
 
-  var porUnidade = {};
-  (d.membros||[]).forEach(function(m){
-    if (!porUnidade[m.unidade]) porUnidade[m.unidade] = [];
-    porUnidade[m.unidade].push(m);
+  classes.forEach(function(classe){
+    var membros=cm[classe]||[];
+    var cor=CLASSE_COR[classe]||'#FFC400';
+    var emoji=CLASSE_EMOJI[classe]||'⭐';
+    var reqs=d.requisitos[classe]||[];
+
+    html+='<div style="margin-bottom:20px">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 14px;background:'+cor+'22;border:1px solid '+cor+';border-radius:12px">'
+      +'<div style="font-size:28px">'+emoji+'</div>'
+      +'<div><div style="font-size:15px;font-weight:800;color:'+cor+'">'+esc(classe)+'</div>'
+      +'<div style="font-size:12px;color:#aaa">'+membros.length+' membro'+(membros.length!==1?'s':'')+' · '+reqs.length+' requisito'+(reqs.length!==1?'s':'')+'</div>'
+      +'</div></div>';
+
+    membros.forEach(function(m){
+      var key=m.unidade+'|'+m.nome;
+      var isOpen=!!(state._espOpen&&state._espOpen[key]);
+      var hasEdits=!!(state._espEdits&&state._espEdits[key]);
+      var pct=m.progresso.pct;
+      var barCor=pct>=100?'#4ade80':pct>=50?cor:'#555';
+      var done=m.requisitos[classe]||[];
+      var datas=m.datas&&m.datas[classe]||[];
+
+      html+='<div style="background:#141414;border:1px solid '+(isOpen?cor:'#222')+';border-radius:12px;margin-bottom:8px;overflow:hidden">'
+        // Header do membro (sempre visível)
+        +'<div onclick="toggleExpand(\''+esc(key)+'\')" style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">'
+        +'<div style="flex:1">'
+        +'<div style="font-weight:700;font-size:15px">'+esc(m.nome)+'</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(m.unidade)+'</div>'
+        +'</div>'
+        +'<div style="text-align:right;margin-right:8px">'
+        +'<div style="font-size:14px;font-weight:800;color:'+barCor+'">'+pct+'%</div>'
+        +'<div style="font-size:11px;color:#666">'+m.progresso.feitos+'/'+m.progresso.total+'</div>'
+        +'</div>'
+        +'<div style="font-size:18px;color:'+cor+';transition:.2s;transform:'+(isOpen?'rotate(180deg)':'rotate(0)')+'"">▼</div>'
+        +'</div>'
+        // Barra de progresso
+        +'<div style="height:4px;background:#222;margin:0 14px '+(isOpen?'0':'10')+'px">'
+        +'<div style="height:100%;background:'+barCor+';width:'+pct+'%"></div>'
+        +'</div>';
+
+      // Requisitos (accordion)
+      if(isOpen){
+        html+='<div style="padding:12px 14px;border-top:1px solid #222">';
+
+        reqs.forEach(function(req,i){
+          var ok=!!(done[i]);
+          var dataConc=datas[i]||'';
+          html+='<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:8px;margin-bottom:6px;background:'+(ok?'#0a1f0f':'#1a1a1a')+'">'
+            +'<button onclick="toggleReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+')" '
+            +'style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#444')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
+            +'<div style="flex:1">'
+            +'<div style="font-size:12px;color:#888;margin-bottom:2px">Req. '+i+1+'</div>'
+            +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.75;':'')+'">' +esc(req)+'</div>'
+            +(ok?'<input type="date" value="'+esc(dataConc)+'" '
+              +'onchange="setDataReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+',this.value)" '
+              +'style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">':'')
+            +'</div></div>';
+        });
+
+        if(hasEdits){
+          html+='<button onclick="salvarMembroInline(\''+esc(key)+'\')" '
+            +'style="width:100%;background:#FFC400;color:#000;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;font-size:14px;margin-top:4px">Salvar ✓</button>';
+        }
+        html+='</div>';
+      }
+
+      html+='</div>';
+    });
+    html+='</div>';
   });
 
-  Object.keys(porUnidade).forEach(function(u){
-    html += '<div style="font-size:12px;color:#FFC400;font-weight:700;letter-spacing:1px;margin:12px 0 6px">'+(EMOJI[u]||'')+' '+esc(u).toUpperCase()+'</div>';
-    porUnidade[u].forEach(function(m){
-      // Mini resumo de classes ativas
-      var classesBadges = (m.classesAtivas||['Amigo']).map(function(c){
-        var prog = (m.progressoClasses||[]).find(function(p){return p.classe===c;}) || {feitos:0,total:1};
-        var pct = prog.total > 0 ? Math.round(prog.feitos/prog.total*100) : 0;
-        var cor = CLASSE_COR[c] || '#FFC400';
-        return '<span style="background:'+cor+'22;border:1px solid '+cor+';color:'+cor+';border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700;margin-right:4px">'
-          +(CLASSE_EMOJI[c]||'')+ ' '+c+' '+pct+'%</span>';
-      }).join('');
+  $('app').innerHTML=html;
+}
 
-      html += '<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="abrirMembro(\''+esc(m.unidade)+'\',\''+esc(m.nome)+'\')">'
-        + '<div style="display:flex;align-items:center;gap:10px">'
-        + '<div style="font-size:26px">'+(CLASSE_EMOJI[m.classesAtivas&&m.classesAtivas[0]||'Amigo']||'⭐')+'</div>'
-        + '<div style="flex:1">'
-        + '<div style="font-weight:700;font-size:15px">'+esc(m.nome)+'</div>'
-        + '<div style="margin-top:4px">'+classesBadges+'</div>'
-        + '</div>'
-        + '<div style="text-align:right;font-size:11px;color:#888">'+m.especialidades.length+' esp.</div>'
-        + '</div></div>';
+function toggleExpand(key){
+  if(!state._espOpen)state._espOpen={};
+  state._espOpen[key]=!state._espOpen[key];
+  renderEspecialidades();
+}
+
+function toggleReqClasse(key,classe,idx){
+  var d=state._esp;if(!d)return;
+  var parts=key.split('|');
+  var m=(d.classesMembros[classe]||[]).find(function(x){return x.unidade===parts[0]&&x.nome===parts[1];});
+  if(!m)return;
+  if(!m.requisitos[classe])m.requisitos[classe]=[];
+  m.requisitos[classe][idx]=!m.requisitos[classe][idx];
+  if(m.requisitos[classe][idx]){
+    if(!m.datas)m.datas={};
+    if(!m.datas[classe])m.datas[classe]=[];
+    if(!m.datas[classe][idx])m.datas[classe][idx]=hoje();
+  }
+  // Recalcular progresso
+  var reqs=d.requisitos[classe]||[];
+  var done=m.requisitos[classe]||[];
+  m.progresso.feitos=reqs.filter(function(_,i){return done[i];}).length;
+  m.progresso.pct=reqs.length>0?Math.round(m.progresso.feitos/reqs.length*100):0;
+  // Marcar como editado
+  if(!state._espEdits)state._espEdits={};
+  state._espEdits[key]=m;
+  renderEspecialidades();
+}
+
+function setDataReqClasse(key,classe,idx,val){
+  var d=state._esp;if(!d)return;
+  var parts=key.split('|');
+  var m=(d.classesMembros[classe]||[]).find(function(x){return x.unidade===parts[0]&&x.nome===parts[1];});
+  if(!m)return;
+  if(!m.datas)m.datas={};
+  if(!m.datas[classe])m.datas[classe]=[];
+  m.datas[classe][idx]=val;
+}
+
+function salvarMembroInline(key){
+  var d=state._esp;if(!d)return;
+  var m=state._espEdits&&state._espEdits[key];
+  if(!m)return;
+  callAPI('saveMembro',{dados:m},function(){
+    if(state._espEdits)delete state._espEdits[key];
+    renderEspecialidades();
+  },function(e){alert('Erro ao salvar: '+(e.message||e));});
+}
+
+// Manter compatibilidade com abrirClasseMembro (chamado do renderLista)
+function abrirClasseMembro(nome,unit){
+  state.view='especialidades';
+  $('app').innerHTML=header()+'<div class="load">Carregando…</div>';
+  callAPI('getEspecialidades',{},function(r){
+    state._esp=r;
+    state._espOpen=state._espOpen||{};
+    // Auto-expandir o membro clicado
+    Object.keys(r.classesMembros||{}).forEach(function(classe){
+      var found=(r.classesMembros[classe]||[]).find(function(x){return x.nome===nome&&x.unidade===unit;});
+      if(found){state._espOpen[unit+'|'+nome]=true;}
     });
-  });
-
-  $('app').innerHTML = html;
-}
-
-function abrirMembro(unidade, nome) {
-  var d = state._esp;
-  if (!d) return;
-  var m = (d.membros||[]).find(function(x){ return x.unidade===unidade && x.nome===nome; });
-  if (!m) return;
-  state._espMembro = JSON.parse(JSON.stringify(m));
-  state._espClasseTab = state._espMembro.classesAtivas[0] || 'Amigo';
-  renderFichaMembro();
-}
-
-function renderFichaMembro() {
-  var m = state._espMembro;
-  var d = state._esp;
-  if (!m || !d) return;
-  var isAdmin = CTX && CTX.role === 'admin';
-  var req = d.requisitos || {};
-  var classeAtiva = state._espClasseTab || m.classesAtivas[0] || 'Amigo';
-  var cor = CLASSE_COR[classeAtiva] || '#FFC400';
-
-  var html = header();
-
-  // Cabeçalho do membro
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
-    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
-    + '<div style="font-size:36px">'+(CLASSE_EMOJI[classeAtiva]||'⭐')+'</div>'
-    + '<div style="flex:1"><div style="font-weight:800;font-size:18px">'+esc(m.nome)+'</div>'
-    + '<div style="font-size:13px;color:#aaa">'+esc(m.unidade)+'</div></div>'
-    + '</div>';
-
-  // Abas de classes ativas
-  if (m.classesAtivas.length > 1) {
-    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
-    m.classesAtivas.forEach(function(c){
-      var on = c === classeAtiva;
-      var cc = CLASSE_COR[c]||'#FFC400';
-      html += '<button onclick="espTab(\''+c+'\')" style="border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+( CLASSE_EMOJI[c]||'')+' '+c+'</button>';
-    });
-    html += '</div>';
-  }
-
-  // Gerenciar classes (admin)
-  if (isAdmin) {
-    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px">CLASSES ATIVAS (pode ter mais de uma):</div>'
-      + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
-      + CLASSES_ESP.map(function(c){
-          var on = m.classesAtivas.indexOf(c) >= 0;
-          var cc = CLASSE_COR[c]||'#FFC400';
-          return '<button onclick="toggleClasseAtiva(\''+c+'\')" style="border:none;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+(CLASSE_EMOJI[c]||'')+' '+c+'</button>';
-        }).join('')
-      + '</div>';
-  }
-  html += '</div>';
-
-  // Requisitos da classe ativa
-  var reqs = req[classeAtiva] || [];
-  var done = m.requisitos[classeAtiva] || [];
-  var datas = m.datas[classeAtiva] || [];
-  var feitos = reqs.filter(function(_,i){return done[i];}).length;
-  var pct = reqs.length > 0 ? Math.round(feitos/reqs.length*100) : 0;
-  var prox = CLASSES_ESP[CLASSES_ESP.indexOf(classeAtiva)+1];
-
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    + '<div style="font-size:13px;font-weight:700;color:'+cor+'">📋 REQUISITOS — '+esc(classeAtiva).toUpperCase()+'</div>'
-    + '<div style="font-size:14px;font-weight:800;color:'+(pct>=100?'#4ade80':cor)+'">'+feitos+'/'+reqs.length+'</div>'
-    + '</div>'
-    + '<div style="background:#222;border-radius:6px;height:8px;margin-bottom:12px;overflow:hidden">'
-    + '<div style="background:'+(pct>=100?'#4ade80':cor)+';height:100%;width:'+pct+'%;transition:.3s"></div>'
-    + '</div>';
-
-  reqs.forEach(function(r, i){
-    var ok = !!(done[i]);
-    var dataConc = datas[i] || '';
-    html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;padding:8px;background:'+(ok?'#0a1f0f':'#1a1a1a')+';border-radius:8px">'
-      // Checkbox
-      + '<button onclick="toggleReq('+i+')" style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#444')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
-      + '<div style="flex:1">'
-      + '<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.75;':'')+'">' +esc(r)+'</div>'
-      // Data de conclusão
-      + (ok ? '<input type="date" value="'+esc(dataConc)+'" onchange="setDataReq('+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">' : '')
-      + '</div></div>';
-  });
-
-  if (pct >= 100 && prox) {
-    html += '<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:10px;padding:10px;text-align:center;margin-top:8px;font-size:13px;color:#4ade80;font-weight:700">🎉 Pronto para avançar para '+esc(prox)+'!</div>';
-  }
-  html += '</div>';
-
-  // Especialidades (seção visual distinta)
-  html += '<div style="background:#141414;border:2px solid #FFC400;border-radius:14px;padding:14px;margin-bottom:14px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:700;color:#FFC400">🏅 ESPECIALIDADES DE HONRA ('+m.especialidades.length+')</div>'
-    + (isAdmin?'<button onclick="adicionarEspecialidade()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar</button>':'')
-    + '</div>';
-
-  if (!m.especialidades.length) {
-    html += '<div style="color:#666;font-size:13px">Nenhuma especialidade registrada.</div>';
-  } else {
-    m.especialidades.forEach(function(e,i){
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:#1a1a1a;border-radius:8px;padding:8px 10px">'
-        + '<span style="font-size:16px">🏅</span>'
-        + '<div style="flex:1;font-size:13px;color:#FFC400;font-weight:600">'+esc(e.nome||e)+'</div>'
-        + (e.data?'<span style="font-size:11px;color:#888">'+esc(e.data)+'</span>':'')
-        + (isAdmin?'<button onclick="removerEsp('+i+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:0">×</button>':'')
-        + '</div>';
-    });
-  }
-  html += '</div>';
-
-  // Botões
-  html += '<div style="display:flex;gap:8px">'
-    + '<button onclick="state._espMembro=null;renderEspecialidades()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Voltar</button>'
-    + (isAdmin?'<button onclick="salvarMembro()" style="flex:2;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;font-size:15px">Salvar</button>':'')
-    + '</div>';
-
-  $('app').innerHTML = html;
-}
-
-function espTab(classe) {
-  state._espClasseTab = classe;
-  renderFichaMembro();
-}
-
-function toggleClasseAtiva(c) {
-  var m = state._espMembro; if (!m) return;
-  var idx = m.classesAtivas.indexOf(c);
-  if (idx >= 0) { if (m.classesAtivas.length > 1) m.classesAtivas.splice(idx,1); }
-  else m.classesAtivas.push(c);
-  state._espClasseTab = m.classesAtivas[0];
-  renderFichaMembro();
-}
-
-function toggleReq(idx) {
-  var m = state._espMembro; if (!m) return;
-  var c = state._espClasseTab || m.classesAtivas[0];
-  if (!m.requisitos[c]) m.requisitos[c] = [];
-  m.requisitos[c][idx] = !m.requisitos[c][idx];
-  // Data automática de hoje ao marcar
-  if (m.requisitos[c][idx]) {
-    if (!m.datas[c]) m.datas[c] = [];
-    if (!m.datas[c][idx]) m.datas[c][idx] = hoje();
-  }
-  renderFichaMembro();
-}
-
-function setDataReq(idx, val) {
-  var m = state._espMembro; if (!m) return;
-  var c = state._espClasseTab || m.classesAtivas[0];
-  if (!m.datas[c]) m.datas[c] = [];
-  m.datas[c][idx] = val;
-}
-
-function adicionarEspecialidade() {
-  var nome = prompt('Nome da especialidade:');
-  if (!nome||!nome.trim()) return;
-  var data = prompt('Data de conclusão (opcional, formato AAAA-MM-DD):') || '';
-  state._espMembro.especialidades.push({nome:nome.trim(), data:data.trim()});
-  renderFichaMembro();
-}
-
-function removerEsp(idx) {
-  state._espMembro.especialidades.splice(idx,1);
-  renderFichaMembro();
-}
-
-function salvarMembro() {
-  var m = state._espMembro; if (!m) return;
-  callAPI('saveMembro', {dados:m}, function(){
-    var d = state._esp;
-    if (d) {
-      var i = (d.membros||[]).findIndex(function(x){return x.unidade===m.unidade&&x.nome===m.nome;});
-      if (i>=0) d.membros[i]=JSON.parse(JSON.stringify(m));
-    }
-    state._espMembro=null; renderEspecialidades();
-  }, function(e){ alert('Erro ao salvar: '+(e.message||e)); });
-}
-
-// Sobrescrever renderFichaMembro para exibir classes em PARALELO
-function renderFichaMembro() {
-  var m = state._espMembro;
-  var d = state._esp;
-  if (!m || !d) return;
-  var isAdmin = CTX && CTX.role === 'admin';
-  var req = d.requisitos || {};
-
-  var html = header();
-
-  // Cabeçalho do membro
-  html += '<div style="background:#141414;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px">'
-    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
-    + '<div style="font-size:36px">'+(CLASSE_EMOJI[m.classesAtivas&&m.classesAtivas[0]||'Amigo']||'⭐')+'</div>'
-    + '<div style="flex:1"><div style="font-weight:800;font-size:18px">'+esc(m.nome)+'</div>'
-    + '<div style="font-size:13px;color:#aaa">'+esc(m.unidade)+'</div></div>'
-    + '</div>';
-
-  // Gerenciar classes ativas (admin)
-  if (isAdmin) {
-    html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px">CLASSES ATIVAS:</div>'
-      + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
-      + CLASSES_ESP.map(function(c){
-          var on = m.classesAtivas.indexOf(c) >= 0;
-          var cc = CLASSE_COR[c]||'#FFC400';
-          return '<button onclick="toggleClasseAtiva(\''+c+'\')" style="border:none;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;background:'+(on?cc:'#1c1c1c')+';color:'+(on?'#000':'#888')+'">'+(CLASSE_EMOJI[c]||'')+' '+c+'</button>';
-        }).join('')
-      + '</div>';
-  }
-  html += '</div>';
-
-  // PARALELO: uma seção por classe ativa
-  (m.classesAtivas||['Amigo']).forEach(function(classeAtiva) {
-    var reqs = req[classeAtiva] || [];
-    var done = m.requisitos[classeAtiva] || [];
-    var datas = m.datas && m.datas[classeAtiva] || [];
-    var feitos = reqs.filter(function(_,i){return done[i];}).length;
-    var pct = reqs.length > 0 ? Math.round(feitos/reqs.length*100) : 0;
-    var prox = CLASSES_ESP[CLASSES_ESP.indexOf(classeAtiva)+1];
-    var cor = CLASSE_COR[classeAtiva] || '#FFC400';
-
-    html += '<div style="background:#141414;border:1px solid #333;border-radius:14px;padding:14px;margin-bottom:12px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-      + '<div style="font-size:14px;font-weight:800;color:'+cor+'">'+(CLASSE_EMOJI[classeAtiva]||'')+ ' '+esc(classeAtiva).toUpperCase()+'</div>'
-      + '<div style="font-size:14px;font-weight:800;color:'+(pct>=100?'#4ade80':cor)+'">'+feitos+'/'+reqs.length+'</div>'
-      + '</div>'
-      + '<div style="background:#222;border-radius:6px;height:8px;margin-bottom:12px;overflow:hidden">'
-      + '<div style="background:'+(pct>=100?'#4ade80':cor)+';height:100%;width:'+pct+'%;transition:.3s"></div>'
-      + '</div>';
-
-    reqs.forEach(function(r, i){
-      var ok = !!(done[i]);
-      var dataConc = datas[i] || '';
-      var chaveReq = classeAtiva+'_'+i;
-      html += '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;padding:8px;background:'+(ok?'#0a1f0f':'#1a1a1a')+';border-radius:8px">'
-        + (isAdmin ? '<button onclick="toggleReqClasse(\''+classeAtiva+'\','+i+')" style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#444')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
-          : '<div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#4ade80':'transparent')+';display:flex;align-items:center;justify-content:center;color:#000;font-size:14px;font-weight:900">'+(ok?'✓':'')+'</div>')
-        + '<div style="flex:1">'
-        + '<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.75;':'')+'">' +esc(r)+'</div>'
-        + (ok && isAdmin ? '<input type="date" value="'+esc(dataConc)+'" onchange="setDataReqClasse(\''+classeAtiva+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">' : '')
-        + (ok && !isAdmin && dataConc ? '<div style="font-size:11px;color:#4ade80;margin-top:2px">✓ '+dataConc+'</div>' : '')
-        + '</div></div>';
-    });
-
-    if (pct >= 100 && prox) {
-      html += '<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:10px;padding:8px;text-align:center;margin-top:6px;font-size:13px;color:#4ade80;font-weight:700">🎉 Pronto para avançar para '+esc(prox)+'!</div>';
-    }
-    html += '</div>';
-  });
-
-  // Especialidades (visual distinto — borda dourada)
-  html += '<div style="background:#141414;border:2px solid #FFC400;border-radius:14px;padding:14px;margin-bottom:14px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:700;color:#FFC400">🏅 ESPECIALIDADES DE HONRA ('+m.especialidades.length+')</div>'
-    + (isAdmin?'<button onclick="adicionarEspecialidade()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar</button>':'')
-    + '</div>';
-
-  if (!m.especialidades.length) {
-    html += '<div style="color:#666;font-size:13px">Nenhuma especialidade registrada.</div>';
-  } else {
-    m.especialidades.forEach(function(e,i){
-      var nome = e.nome||e; var data = e.data||'';
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:#1a1a1a;border-radius:8px;padding:8px 10px">'
-        + '<span style="font-size:16px">🏅</span>'
-        + '<div style="flex:1;font-size:13px;color:#FFC400;font-weight:600">'+esc(nome)+'</div>'
-        + (data?'<span style="font-size:11px;color:#888">'+esc(data)+'</span>':'')
-        + (isAdmin?'<button onclick="removerEsp('+i+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:0">×</button>':'')
-        + '</div>';
-    });
-  }
-  html += '</div>';
-
-  html += '<div style="display:flex;gap:8px">'
-    + '<button onclick="state._espMembro=null;renderEspecialidades()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">← Voltar</button>'
-    + (isAdmin?'<button onclick="salvarMembro()" style="flex:2;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;font-size:15px">Salvar ✓</button>':'')
-    + '</div>';
-
-  $('app').innerHTML = html;
-}
-
-function toggleReqClasse(classe, idx) {
-  var m = state._espMembro; if (!m) return;
-  if (!m.requisitos[classe]) m.requisitos[classe] = [];
-  m.requisitos[classe][idx] = !m.requisitos[classe][idx];
-  if (m.requisitos[classe][idx]) {
-    if (!m.datas) m.datas = {};
-    if (!m.datas[classe]) m.datas[classe] = [];
-    if (!m.datas[classe][idx]) m.datas[classe][idx] = hoje();
-  }
-  renderFichaMembro();
-}
-
-function setDataReqClasse(classe, idx, val) {
-  var m = state._espMembro; if (!m) return;
-  if (!m.datas) m.datas = {};
-  if (!m.datas[classe]) m.datas[classe] = [];
-  m.datas[classe][idx] = val;
+    renderEspecialidades();
+  },function(e){erroTela('Erro: '+(e.message||e));});
 }
 
 </script>
