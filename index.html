@@ -31,6 +31,8 @@
 
 
 
+
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -102,6 +104,18 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -235,11 +249,13 @@ function header(){
   if(CTX&&CTX.role==='admin'){
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
+      +'<button class="pill'+(state.view==='esp_tab'?' on':'')+'" onclick="loadEspecialidadesTab()" style="white-space:nowrap">⭐ Especialidades</button>'
       +'<button class="pill'+(state.view==='painel'?' on':'')+'" onclick="togglePainel()" style="white-space:nowrap">📊 Painel</button>'
       +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()" style="white-space:nowrap">🏆 Ranking</button>';
   } else {
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
-      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>';
+      +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
+      +'<button class="pill'+(state.view==='esp_tab'?' on':'')+'" onclick="loadEspecialidadesTab()" style="white-space:nowrap">⭐ Especialidades</button>';
   }
   return '<div class="topo"><div style="display:flex;align-items:center;gap:10px">'+logo
     +'<div><div class="kicker">CLUBE DE DESBRAVADORES</div>'
@@ -1185,6 +1201,7 @@ function loadEspecialidades(){
   state.view='especialidades';
   var reqId=Date.now(); state._espReqId=reqId;
   $('app').innerHTML=header()+'<div class="load">Carregando classes…</div>';
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
   callAPI('getEspecialidades',{},function(r){
     if(state._espReqId!==reqId||state.view!=='especialidades')return;
     state._esp=r;
@@ -1370,6 +1387,234 @@ function mostrarToast(msg){
     t.style.transition='opacity .4s';t.style.opacity='0';
     setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);
   },2000);
+}
+
+// ══ ESPECIALIDADES (aba nova) ══════════════════════════════════
+
+function loadEspecialidadesTab(){
+  state.view='esp_tab';
+  var reqId=Date.now(); state._espTabReqId=reqId;
+  $('app').innerHTML=header()+'<div class="load">Carregando especialidades…</div>';
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
+  callAPI('getEspecialidadesApp',{},function(r){
+    if(state._espTabReqId!==reqId||state.view!=='esp_tab')return;
+    state._espTab=r;
+    if(!state._espTabOpen)state._espTabOpen={};
+    if(!state._espTabEdits)state._espTabEdits={};
+    renderEspecialidadesTab();
+  },function(e){if(state.view==='esp_tab')erroTela('Erro: '+(e.message||e));});
+}
+
+function renderEspecialidadesTab(){
+  var d=state._espTab;if(!d)return;
+  var isAdmin=CTX&&CTX.role==='admin';
+  var instructorClasses=CTX&&CTX.classes;
+  var cm=d.classesMembros||{};
+  var html=header();
+
+  // Título + botão adicionar
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+    +'<div style="font-size:14px;font-weight:800;color:#FFC400;letter-spacing:1px">⭐ ESPECIALIDADES</div>'
+    +((isAdmin||instructorClasses)?'<button onclick="abrirModalAddEsp()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;font-size:13px">+ Especialidade</button>':'')
+    +'</div>';
+
+  var classes=Object.keys(cm);
+  if(!classes.length){
+    html+='<div style="color:#666;text-align:center;padding:30px;line-height:1.8">Nenhuma especialidade cadastrada ainda.<br>'
+      +'<span style="font-size:12px">Preencha a aba <b>Especialidades</b> na planilha<br>ou use o botão + acima.</span></div>';
+    $('app').innerHTML=html;
+    if(typeof scrollToActivePill==='function')scrollToActivePill();
+    return;
+  }
+
+  classes.forEach(function(classe){
+    var membros=cm[classe]||[];
+    var cor=CLASSE_COR[classe]||'#FFC400';
+    var isClasseOpen=!!(state._espTabOpen&&state._espTabOpen['_c_'+classe]);
+
+    html+='<div style="margin-bottom:10px;border-radius:12px;overflow:hidden;border:1px solid '+(cor+'55')+'">'
+      +'<div onclick="toggleEspClasse(\''+esc(classe)+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:'+cor+'22">'
+      +'<span>'+classeIcon(classe,32)+'</span>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:15px;font-weight:800;color:'+cor+'">'+esc(classe)+'</div>'
+      +'<div style="font-size:12px;color:#aaa">'+membros.length+' membro'+(membros.length!==1?'s':'')+'</div>'
+      +'</div>'
+      +'<div style="font-size:20px;color:'+cor+';transform:'+(isClasseOpen?'rotate(180deg)':'rotate(0)')+';transition:.2s">▼</div>'
+      +'</div>';
+
+    if(isClasseOpen){
+      html+='<div style="background:#0d0d0d">';
+      membros.forEach(function(m){
+        var key=m.unidade+'|'+m.nome;
+        var isOpen=!!(state._espTabOpen&&state._espTabOpen[key]);
+        var hasEdits=!!(state._espTabEdits&&state._espTabEdits[key]);
+        var pct=m.progresso.pct;
+        var barCor=pct>=100?'#4ade80':cor;
+        var podeEditar=isAdmin||(instructorClasses&&instructorClasses.indexOf(classe)>=0);
+
+        html+='<div style="border-top:1px solid #1a1a1a">'
+          +'<div onclick="toggleEspMembro(\''+esc(key)+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer">'
+          +'<div style="flex:1">'
+          +'<span style="font-weight:700;font-size:14px">'+esc(m.nome)+'</span>'
+          +'<span style="font-size:11px;color:#666;margin-left:8px">'+esc(m.unidade)+'</span>'
+          +'</div>'
+          +'<div style="text-align:right;margin-right:8px">'
+          +'<div style="font-size:13px;font-weight:800;color:'+barCor+'">'+pct+'%</div>'
+          +'<div style="font-size:10px;color:#555">'+m.progresso.concluidas+'/'+m.progresso.total+' obrig.</div>'
+          +'</div>'
+          +'<div style="font-size:16px;color:#555;transform:'+(isOpen?'rotate(180deg)':'rotate(0)')+';transition:.2s">▼</div>'
+          +'</div>'
+          +'<div style="height:3px;background:#1a1a1a;margin:0 14px '+(isOpen?'0':'6')+'px">'
+          +'<div style="height:100%;background:'+barCor+';width:'+pct+'%"></div>'
+          +'</div>';
+
+        if(isOpen){
+          html+='<div style="padding:10px 14px 14px;background:#0a0a0a">';
+          m.especialidades.forEach(function(e){
+            var ok=e.concluida;
+            html+='<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:8px;margin-bottom:4px;background:'+(ok?'#0a1f0f':'#111')+'">'
+              +(podeEditar
+                ?'<button onclick="toggleEspItem(\''+esc(key)+'\',\''+esc(e.nome)+'\')" style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
+                :'<div style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#222')+';background:'+(ok?'#4ade80':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:900">'+(ok?'✓':'')+'</div>')
+              +'<div style="flex:1">'
+              +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+              +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(e.nome)+'</div>'
+              +(e.opcional?'<span style="font-size:10px;color:#888;background:#222;border-radius:4px;padding:1px 5px">opcional</span>':'')
+              +'</div>'
+              +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
+              +(ok&&podeEditar?'<input type="date" value="'+esc(e.data)+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">':'')
+              +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
+              +'</div></div>';
+          });
+          if(hasEdits&&podeEditar){
+            html+='<button onclick="salvarEspMembro(\''+esc(key)+'\')" style="width:100%;background:#FFC400;color:#000;border:none;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;font-size:14px;margin-top:6px">Salvar ✓</button>';
+          }
+          html+='</div>';
+        }
+        html+='</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+
+  $('app').innerHTML=html;
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
+}
+
+function toggleEspClasse(classe){
+  if(!state._espTabOpen)state._espTabOpen={};
+  state._espTabOpen['_c_'+classe]=!state._espTabOpen['_c_'+classe];
+  renderEspecialidadesTab();
+}
+
+function toggleEspMembro(key){
+  if(!state._espTabOpen)state._espTabOpen={};
+  state._espTabOpen[key]=!state._espTabOpen[key];
+  renderEspecialidadesTab();
+}
+
+function toggleEspItem(key,espNome){
+  var d=state._espTab;if(!d)return;
+  var parts=key.split('|'),u=parts[0],n=parts[1];
+  var membro=null;
+  Object.keys(d.classesMembros).forEach(function(cl){
+    var m=(d.classesMembros[cl]||[]).find(function(x){return x.unidade===u&&x.nome===n;});
+    if(m)membro=m;
+  });
+  if(!membro)return;
+  var esp=membro.especialidades.find(function(e){return e.nome===espNome;});
+  if(!esp)return;
+  esp.concluida=!esp.concluida;
+  if(esp.concluida&&!esp.data)esp.data=hoje();
+  var obrig=membro.especialidades.filter(function(e){return!e.opcional;});
+  var conc=obrig.filter(function(e){return e.concluida;});
+  membro.progresso.concluidas=conc.length;
+  membro.progresso.total=obrig.length;
+  membro.progresso.pct=obrig.length>0?Math.round(conc.length/obrig.length*100):0;
+  if(!state._espTabEdits)state._espTabEdits={};
+  state._espTabEdits[key]=membro;
+  renderEspecialidadesTab();
+}
+
+function setEspData(key,espNome,val){
+  var d=state._espTab;if(!d)return;
+  var parts=key.split('|');
+  Object.keys(d.classesMembros).forEach(function(cl){
+    var m=(d.classesMembros[cl]||[]).find(function(x){return x.unidade===parts[0]&&x.nome===parts[1];});
+    if(m){var e=m.especialidades.find(function(e){return e.nome===espNome;});if(e)e.data=val;}
+  });
+}
+
+function salvarEspMembro(key){
+  var d=state._espTab;if(!d)return;
+  var m=state._espTabEdits&&state._espTabEdits[key];if(!m)return;
+  var dados={unidade:m.unidade,nome:m.nome,
+    items:m.especialidades.map(function(e){return{espNome:e.nome,concluida:e.concluida,data:e.data||''};})}
+  callAPI('saveEspecialidadeMembro',{dados:dados},function(){
+    if(state._espTabEdits)delete state._espTabEdits[key];
+    mostrarToast('✓ Especialidades salvas!');
+    renderEspecialidadesTab();
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
+// ── Modal: adicionar especialidade ────────────────────────────
+function abrirModalAddEsp(){
+  var classeOpts=['Amigo','Companheiro','Pesquisador','Pioneiro','Excursionista','Guia','Líder','Líder Master','Líder Master Avançado']
+    .map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('');
+  var unitOpts=UNITS.map(function(u){return'<option value="'+u+'">'+u+'</option>';}).join('');
+
+  var ov=document.createElement('div');
+  ov.id='_addEspOv_';
+  ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
+  ov.innerHTML='<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:400px;margin:0 auto">'
+    +'<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:16px">⭐ Nova Especialidade</div>'
+    +'<div style="font-size:12px;color:#aaa;margin-bottom:6px">Escopo</div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:14px">'
+    +'<button id="_esc1_" onclick="selEscopoEsp(\'classe\')" class="pill on" style="white-space:nowrap;font-size:13px">Por Classe</button>'
+    +'<button id="_esc2_" onclick="selEscopoEsp(\'unidade\')" class="pill" style="white-space:nowrap;font-size:13px">Por Unidade</button>'
+    +'<button id="_esc3_" onclick="selEscopoEsp(\'individual\')" class="pill" style="white-space:nowrap;font-size:13px">Individual</button>'
+    +'</div>'
+    +'<div id="_escopoDiv_" style="margin-bottom:12px">'
+    +'<div style="font-size:12px;color:#aaa;margin-bottom:4px">Classe</div>'
+    +'<select id="_espEscVal_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">'+classeOpts+'</select>'
+    +'</div>'
+    +'<input id="_espNome_" placeholder="Nome da especialidade" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
+    +'<input id="_espDesc_" placeholder="Descrição (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:12px;box-sizing:border-box">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">'
+    +'<input type="checkbox" id="_espOpc_" style="width:18px;height:18px;cursor:pointer">'
+    +'<label for="_espOpc_" style="font-size:14px;color:#aaa;cursor:pointer">Opcional (não entra na % de conclusão)</label>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button onclick="document.getElementById(\'_addEspOv_\').remove()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Cancelar</button>'
+    +'<button onclick="confirmarAddEsp()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer">Adicionar ✓</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  window._espCOpts=classeOpts; window._espUOpts=unitOpts;
+}
+
+function selEscopoEsp(tipo){
+  ['_esc1_','_esc2_','_esc3_'].forEach(function(id,i){
+    var el=document.getElementById(id);if(el)el.className='pill'+([tipo==='classe',tipo==='unidade',tipo==='individual'][i]?' on':'');
+  });
+  var div=document.getElementById('_escopoDiv_');if(!div)return;
+  if(tipo==='classe')div.innerHTML='<div style="font-size:12px;color:#aaa;margin-bottom:4px">Classe</div><select id="_espEscVal_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">'+window._espCOpts+'</select>';
+  else if(tipo==='unidade')div.innerHTML='<div style="font-size:12px;color:#aaa;margin-bottom:4px">Unidade</div><select id="_espEscVal_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">'+window._espUOpts+'</select>';
+  else div.innerHTML='<div style="font-size:12px;color:#aaa;margin-bottom:4px">Nome do membro</div><input id="_espEscVal_" placeholder="Nome exato do membro" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">';
+}
+
+function confirmarAddEsp(){
+  var nome=(($('_espNome_')||{}).value||'').trim();
+  if(!nome){alert('Informe o nome da especialidade.');return;}
+  var escopo=(($('_espEscVal_')||{}).value||'').trim();
+  if(!escopo){alert('Selecione o escopo.');return;}
+  var desc=(($('_espDesc_')||{}).value||'').trim();
+  var opcional=!!(($('_espOpc_')||{}).checked);
+  var ov=document.getElementById('_addEspOv_');if(ov)ov.remove();
+  callAPI('addEspecialidade',{dados:{nome:nome,escopo:escopo,descricao:desc,opcional:opcional}},
+    function(){mostrarToast('✓ Especialidade adicionada!');loadEspecialidadesTab();},
+    function(e){alert('Erro: '+(e.message||e));}
+  );
 }
 
 </script>
