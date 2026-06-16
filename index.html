@@ -33,6 +33,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -173,6 +174,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -237,7 +244,7 @@ function classeIcon(c,sz){
 // ── cabeçalho com scroll horizontal ──────────────────────────
 function header(){
   var logo=(LOGOS&&LOGOS.clube)?'<img src="'+LOGOS.clube+'" style="height:52px;flex-shrink:0;">':'';
-  var dt='<input type="date" id="dt" value="'+state.date+'" style="background:#141414;border:1px solid #333;color:#fff;border-radius:10px;padding:8px 10px;font-size:14px;flex-shrink:0">';
+  // date agora fica no topo
   var pills='';
   if(CTX&&CTX.units&&CTX.units.length>0){
     pills=CTX.units.map(function(u){
@@ -260,7 +267,7 @@ function header(){
   return '<div class="topo"><div style="display:flex;align-items:center;gap:10px">'+logo
     +'<div><div class="kicker">CLUBE DE DESBRAVADORES</div>'
     +'<div class="titulo">THOMAS EDISON 💡</div></div></div>'
-    +'<div class="quem">Olá, '+esc(CTX?CTX.apelido:'')+'</div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><input type="date" id="dt" value="'+state.date+'" style="background:transparent;border:none;border-bottom:1px solid #333;color:#aaa;font-size:12px;padding:2px 4px;cursor:pointer;max-width:100px"><div class="quem">Olá, '+esc(CTX?CTX.apelido:'')+'</div></div></div>'
     // Scroll horizontal: pills + data numa linha rolante
     +'<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:4px" class="pills-row">'
     +pills+extra+dt
@@ -315,6 +322,21 @@ function renderLista(){
           +'</div>'
           +'<div style="background:#2a2a2a;border-radius:3px;height:3px">'
           +'<div style="background:'+c2+';height:100%;width:'+p.classePct2+'%;border-radius:3px"></div>'
+          +'</div>';
+      }
+      if(t2&&p.classeNome2&&p.classeNome2.trim()){
+        // segunda barra acima já foi adicionada
+      }
+      var t3=(p.classeNome3&&p.classeNome3.trim());
+      if(t3){
+        var c3=CLASSE_COR[p.classeNome3]||'#888';
+        classeBadge+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;margin-top:6px">'
+          +classeIcon(p.classeNome3,18)
+          +'<span style="font-size:11px;color:'+c3+';font-weight:700">'+esc(p.classeNome3)+'</span>'
+          +'<span style="font-size:10px;color:#555;margin-left:auto">'+p.classePct3+'%</span>'
+          +'</div>'
+          +'<div style="background:#2a2a2a;border-radius:3px;height:3px">'
+          +'<div style="background:'+c3+';height:100%;width:'+p.classePct3+'%;border-radius:3px"></div>'
           +'</div>';
       }
       classeBadge+='<div style="font-size:10px;color:#444;margin-top:3px;text-align:right">› ver classe</div></div>';
@@ -542,11 +564,13 @@ function eyeIcon(visible,sz){
 
 // Mantém o scroll do menu na pill ativa
 function scrollToActivePill(){
-  setTimeout(function(){
-    var row=document.querySelector('.pills-row');
-    var active=row&&row.querySelector('.pill.on');
-    if(active)active.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
-  },50); // pequeno delay para garantir que o DOM está montado
+  var row=document.querySelector('.pills-row');
+  if(!row)return;
+  var active=row.querySelector('.pill.on');
+  if(!active)return;
+  // Centralizar sem animação (evita looping visual)
+  var center=active.offsetLeft - row.offsetWidth/2 + active.offsetWidth/2;
+  row.scrollLeft=center;
 }
 
 function startApp(){
@@ -1481,6 +1505,7 @@ function renderEspecialidadesTab(){
               +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(e.nome)+'</div>'
               +(e.opcional?'<span style="font-size:10px;color:#888;background:#222;border-radius:4px;padding:1px 5px">opcional</span>':'')
               +'</div>'
+              +(e.categoria?'<div style="font-size:10px;color:#FFC400;background:#FFC40015;border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:2px">'+esc(e.categoria)+'</div>':'')
               +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
               +(ok&&podeEditar?'<input type="date" value="'+esc(e.data)+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:4px 6px;font-size:11px;width:140px">':'')
               +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
@@ -1569,6 +1594,7 @@ function abrirModalAddEsp(){
   ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
   ov.innerHTML='<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:400px;margin:0 auto">'
     +'<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:16px">⭐ Nova Especialidade</div>'
+    +'<input id="_espCat_" placeholder="Categoria (opcional — ex: Culinária, Saúde)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
     +'<div style="font-size:12px;color:#aaa;margin-bottom:6px">Escopo</div>'
     +'<div style="display:flex;gap:6px;margin-bottom:14px">'
     +'<button id="_esc1_" onclick="selEscopoEsp(\'classe\')" class="pill on" style="white-space:nowrap;font-size:13px">Por Classe</button>'
@@ -1609,9 +1635,10 @@ function confirmarAddEsp(){
   var escopo=(($('_espEscVal_')||{}).value||'').trim();
   if(!escopo){alert('Selecione o escopo.');return;}
   var desc=(($('_espDesc_')||{}).value||'').trim();
+  var cat=(($('_espCat_')||{}).value||'').trim();
   var opcional=!!(($('_espOpc_')||{}).checked);
   var ov=document.getElementById('_addEspOv_');if(ov)ov.remove();
-  callAPI('addEspecialidade',{dados:{nome:nome,escopo:escopo,descricao:desc,opcional:opcional}},
+  callAPI('addEspecialidade',{dados:{nome:nome,escopo:escopo,categoria:cat,descricao:desc,opcional:opcional}},
     function(){mostrarToast('✓ Especialidade adicionada!');loadEspecialidadesTab();},
     function(e){alert('Erro: '+(e.message||e));}
   );
