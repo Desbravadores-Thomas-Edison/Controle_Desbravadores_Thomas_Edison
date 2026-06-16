@@ -25,6 +25,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -96,6 +97,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -1075,9 +1082,7 @@ function compartilharAgenda(r){
   function toTime(m){var h=Math.floor(m/60)%24,mm=m%60;return(h<10?'0':'')+h+'h'+(mm<10?'0':'')+mm;}
   var msg='╔══ *PROGRAMAÇÃO* ══╗\n';
   msg+='📅 *'+r.publicadaFmt+'* — '+r.tipo+'\n';
-  msg+='⏰ '+r.inicio+' → '+r.fim+'\n';
-  msg+='📋 *'+r.nome+'*\n';
-  msg+='╚═════════════════╝\n\n';
+  msg+='⏰ '+r.inicio+' → '+r.fim+'\n\n';
   var cursor=toMin(r.inicio);
   (r.atividades||[]).forEach(function(a){
     msg+='*'+toTime(cursor)+'* → '+a.nome+' _('+a.min+'min)_\n';
