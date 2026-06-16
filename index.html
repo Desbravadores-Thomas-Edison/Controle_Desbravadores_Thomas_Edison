@@ -27,6 +27,8 @@
 
 
 
+
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -98,6 +100,18 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -325,6 +339,7 @@ function render(){
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadRoster();});
   renderLista();
   loadReuniaoPublicada();
+  scrollToActivePill();
 }
 
 function refreshStats(){
@@ -403,6 +418,7 @@ function renderPainel(){
   });
   $('app').innerHTML=html;
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadPainel();});
+  scrollToActivePill();
 }
 
 function loadRoster(){
@@ -488,6 +504,16 @@ function eyeIcon(visible,sz){
   } else {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
   }
+}
+
+
+// Mantém o scroll do menu na pill ativa
+function scrollToActivePill(){
+  setTimeout(function(){
+    var row=document.querySelector('.pills-row');
+    var active=row&&row.querySelector('.pill.on');
+    if(active)active.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  },50); // pequeno delay para garantir que o DOM está montado
 }
 
 function startApp(){
@@ -604,7 +630,7 @@ function abrirCarrossel() {
     + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#aaa">Data</label>'
     + '<input id="_cDate_" type="date" value="'+state.date+'" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-top:4px;box-sizing:border-box;font-size:14px"></div>'
     + '<div style="margin-bottom:10px"><label style="font-size:12px;color:#aaa">Tipo de carrossel</label>'
-    + '<input id="_cTipo_" placeholder="Ex: Carrossel de marchas" value="Carrossel" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-top:4px;box-sizing:border-box;font-size:14px"></div>'
+    + '<input id="_cTipo_" placeholder="Ex: Carrossel de marchas, Campeonato de nós..." value="Carrossel" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-top:4px;box-sizing:border-box;font-size:14px"></div>'
     + '<div style="font-size:12px;color:#aaa;margin-bottom:8px">Pontos por unidade (deixe 0 se não participou):</div>'
     + UNITS.map(function(u){ return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
       + '<span style="flex:1;font-weight:700">'+EMOJI[u]+' '+u+'</span>'
@@ -614,26 +640,39 @@ function abrirCarrossel() {
     + '<button onclick="this.parentNode.parentNode.parentNode.remove()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Cancelar</button>'
     + '<button onclick="confirmarCarrossel()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar</button>'
     + '</div></div>';
+  ov.id='_carrosselOv_';
   document.body.appendChild(ov);
 }
 
 var EMOJI = {'Leão':'🦁','Panda':'🐼','Tigre':'🐯','Puma':'🐆'};
 
 function confirmarCarrossel() {
-  var data = ($('_cDate_')||{}).value || state.date;
-  var tipo = ($('_cTipo_')||{}).value || 'Carrossel';
+  var dataVal = ($('_cDate_')||{}).value || state.date;
+  var tipo    = ($('_cTipo_')||{}).value || 'Carrossel';
   var resultados = UNITS.map(function(u){
-    return {unidade: u, pontos: parseInt(($('_cp_'+u+'_')||{}).value)||0, obs:''};
-  }).filter(function(r){ return r.pontos > 0; });
-  if (!resultados.length) { alert('Informe ao menos um ponto.'); return; }
-  document.querySelector('[id^="_cDate_"]') && document.querySelector('[id^="_cDate_"]').closest('div[style*="position:fixed"]') && document.querySelector('[id^="_cDate_"]').closest('div[style*="position:fixed"]').remove();
-  // Fechar o modal
-  var ovs = document.querySelectorAll('div[style*="position:fixed"]');
-  ovs.forEach(function(o){ if(o.querySelector('#_cDate_')||o.querySelector('#_cTipo_')) o.remove(); });
-  callAPI('saveCarrossel', {data: data, tipo: tipo, resultados: resultados},
-    function(){ loadRanking(); },
-    function(e){ alert('Erro: '+(e.message||e)); }
+    return {unidade:u, pontos:parseInt(($('_cp_'+u+'_')||{}).value)||0, obs:''};
+  }).filter(function(r){return r.pontos>0;});
+  if(!resultados.length){alert('Informe ao menos um ponto para uma unidade.');return;}
+
+  // Fechar modal
+  var ov=document.getElementById('_carrosselOv_');
+  if(ov)ov.remove();
+
+  callAPI('saveCarrossel',{data:dataVal,tipo:tipo,resultados:resultados},
+    function(r){
+      mostrarToast('✓ '+r.linhas+' resultado'+(r.linhas!==1?'s':'')+' lançado'+(r.linhas!==1?'s':'')+'!');
+      loadRanking();
+    },
+    function(e){alert('Erro: '+(e.message||e));}
   );
+}
+
+function mostrarToast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06310f;padding:10px 22px;border-radius:20px;font-weight:800;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.transition='opacity .4s';t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);},2000);
 }
 
 // ══ REUNIÃO v3 ════════════════════════════════════════════════
@@ -657,6 +696,7 @@ function renderReuniaoShell(){
   }
   html+='<div id="reuniaoBody"><div class="load">Carregando…</div></div>';
   $('app').innerHTML=html;
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
   if(!isAdmin){loadAgenda();return;}
   if(state.reuniaoTab==='planejar')loadPlanejar();
   else if(state.reuniaoTab==='provas')loadProvas();
@@ -1154,7 +1194,8 @@ function renderEspecialidades(){
 
   if(!todasClasses.length){
     html+='<div style="color:#666;text-align:center;padding:30px;line-height:1.8">Nenhum membro encontrado.<br><span style="font-size:12px">Verifique a coluna D (Classe) na aba Cadastro.</span></div>';
-    $('app').innerHTML=html;return;
+    $('app').innerHTML=html;
+  if(typeof scrollToActivePill==='function')scrollToActivePill();return;
   }
 
   todasClasses.forEach(function(classe){
@@ -1239,6 +1280,7 @@ function renderEspecialidades(){
   });
 
   $('app').innerHTML=html;
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
 }
 
 function toggleClasseExpand(classe){
