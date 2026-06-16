@@ -34,6 +34,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -105,6 +106,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -270,7 +277,7 @@ function header(){
     +'<div style="display:flex;align-items:center;gap:10px"><input type="date" id="dt" value="'+state.date+'" style="background:transparent;border:none;border-bottom:1px solid #333;color:#aaa;font-size:12px;padding:2px 4px;cursor:pointer;max-width:100px"><div class="quem">Olá, '+esc(CTX?CTX.apelido:'')+'</div></div></div>'
     // Scroll horizontal: pills + data numa linha rolante
     +'<div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:4px" class="pills-row">'
-    +pills+extra+dt
+    +pills+extra
     +'</div>';
 }
 
