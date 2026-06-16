@@ -30,6 +30,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -101,6 +102,12 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Responsivo */
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -410,6 +417,7 @@ function togglePainel(){
 function loadPainel(){
   state.view='painel';
   $('app').innerHTML=header()+'<div class="load">Calculando…</div>';
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadPainel();});
   callAPI('getPanel',{date:state.date},function(p){state._painel=p;renderPainel();},function(e){erroTela('Erro painel: '+(e.message||e));});
 }
@@ -432,6 +440,7 @@ function renderPainel(){
 function loadRoster(){
   if(!state.unit){render();return;}
   $('app').innerHTML=header()+'<div class="load">Carregando lista…</div>';
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadRoster();});
   callAPI('getRoster',{unit:state.unit,date:state.date},
     function(r){state.rows=r.rows;state.jaSalvo=!!(r.jaSalvo);render();},
@@ -545,6 +554,7 @@ startApp();
 function loadRanking() {
   state.view = 'ranking';
   $('app').innerHTML = header() + '<div class="load">Calculando ranking…</div>';
+  if(typeof scrollToActivePill==='function')scrollToActivePill();
   $('dt') && $('dt').addEventListener('change', function(e){ state.date=e.target.value; });
   var periodo = {ini: state.rankIni || '', fim: state.rankFim || state.date};
   callAPI('getRanking', {periodo: periodo}, function(r) {
