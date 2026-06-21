@@ -43,6 +43,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -217,6 +218,13 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Evitar zoom automático no iOS em qualquer input */
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
@@ -739,11 +747,11 @@ function renderRanking() {
   }
 
   // Filtro de período (compacto)
-  html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">'
-    +'<input type="date" id="rkIni" value="'+(state.rankIni||'')+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
-    +'<span style="color:#555">→</span>'
-    +'<input type="date" id="rkFim" value="'+(state.rankFim||state.date)+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
-    +'<button onclick="filtrarRanking()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13px">OK</button>'
+  html+='<div style="display:flex;align-items:center;gap:4px;margin-bottom:14px">'
+    +'<input type="date" id="rkIni" value="'+(state.rankIni||'')+'" style="flex:1;min-width:0;background:#141414;border:1px solid #333;color:#aaa;border-radius:6px;padding:5px 4px;font-size:12px">'
+    +'<span style="color:#555;flex-shrink:0">→</span>'
+    +'<input type="date" id="rkFim" value="'+(state.rankFim||state.date)+'" style="flex:1;min-width:0;background:#141414;border:1px solid #333;color:#aaa;border-radius:6px;padding:5px 4px;font-size:12px">'
+    +'<button onclick="filtrarRanking()" style="background:#FFC400;color:#000;border:none;border-radius:6px;padding:5px 8px;font-weight:700;cursor:pointer;font-size:12px;flex-shrink:0">OK</button>'
     +'</div>';
 
   // ── RANKING DE UNIDADES ──────────────────────────────────
@@ -1097,7 +1105,12 @@ function renderReuniaoAtiva(){
 
   html+='<div id="_rativs_drag_">';
   (r.atividades||[]).forEach(function(a,i){
-    html+='<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">'
+    html+='<div class="ativ-item" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">'
+      +'<div class="drag-handle" style="cursor:grab;color:#555;font-size:20px;flex-shrink:0;padding:0 4px;user-select:none;-webkit-user-select:none;touch-action:none" title="Arrastar">⠿</div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">'
+      +'<button onclick="moverAtiv('+i+',-1)" style="background:none;border:none;color:#555;cursor:pointer;font-size:13px;padding:1px;line-height:1">▲</button>'
+      +'<button onclick="moverAtiv('+i+',1)" style="background:none;border:none;color:#555;cursor:pointer;font-size:13px;padding:1px;line-height:1">▼</button>'
+      +'</div>'
       +'<div style="flex:1"><input id="_anome_'+i+'" value="'+esc(a.nome)+'" placeholder="Nova atividade" oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:16px;font-weight:600;padding:2px 0;margin-bottom:4px"></div>'
       +'<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
       +'<input id="_amin_'+i+'" type="number" value="'+(a.min||0)+'" min="0" oninput="state._reuniaoAtiva.atividades['+i+'].min=parseInt(this.value)||0;updateTimebar()" style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
