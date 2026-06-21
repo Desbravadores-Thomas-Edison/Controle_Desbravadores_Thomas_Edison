@@ -42,6 +42,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -216,6 +217,13 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Evitar zoom automático no iOS em qualquer input */
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
@@ -710,53 +718,68 @@ function renderRanking() {
   var r = state._ranking;
   if (!r) return;
   var html = header();
-
-  // Botão de visibilidade do ranking (só admin)
   var isAdmin=CTX&&CTX.role==='admin';
+
+  // Botão olho (visibilidade)
   if(isAdmin){
     var rankVis=isRankingVisivel();
     html+='<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
       +'<button onclick="toggleRankingVisibilidade()" style="background:none;border:1px solid #333;border-radius:8px;color:#aaa;cursor:pointer;padding:5px 10px;font-size:12px;display:flex;align-items:center;gap:6px">'
-      +eyeIcon(rankVis,14)
-      +' '+(rankVis?'Visível para todos':'Só para admin')
-      +'</button></div>';;
+      +eyeIcon(rankVis,14)+' '+(rankVis?'Visível para todos':'Só para admin')
+      +'</button></div>';
   }
-
-  // Mostrar aviso se ranking está oculto para não-admin
   if(!isAdmin&&!isRankingVisivel()){
     $('app').innerHTML=header()+'<div style="color:#666;text-align:center;padding:40px;font-size:14px">📊 Ranking não disponível no momento.</div>';
     return;
   }
 
-  // Botão lançar resultado (só admin) — ACIMA do filtro
-  if(CTX&&CTX.role==='admin'){
+  // Botão lançar carrossel (só admin)
+  if(isAdmin){
     html+='<button onclick="abrirCarrossel()" style="width:100%;background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:12px;padding:12px;font-weight:800;cursor:pointer;font-size:14px;margin-bottom:12px">+ Lançar resultado de carrossel</button>';
   }
 
-  // Filtro de período
-  html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">'
-    + '<input type="date" id="rkIni" value="'+(state.rankIni||'')+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
-    + '<span style="color:#555">→</span>'
-    + '<input type="date" id="rkFim" value="'+(state.rankFim||state.date)+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
-    + '<button onclick="filtrarRanking()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13px">OK</button>'
-    + '</div>';
+  // Filtro de período (compacto)
+  html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">'
+    +'<input type="date" id="rkIni" value="'+(state.rankIni||'')+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
+    +'<span style="color:#555">→</span>'
+    +'<input type="date" id="rkFim" value="'+(state.rankFim||state.date)+'" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:8px;padding:6px 8px;font-size:13px">'
+    +'<button onclick="filtrarRanking()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13px">OK</button>'
+    +'</div>';
 
+  // ── RANKING DE UNIDADES ──────────────────────────────────
+  html+='<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:8px">🏆 RANKING DE UNIDADES</div>';
+  (r.unidades||[]).forEach(function(u,i){
+    var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+    var bg=i===0?'rgba(255,196,0,0.12)':'#141414';
+    var carr=(u.carrossel!==undefined&&u.carrossel!==null&&u.carrossel!=='') ? u.carrossel : '-';
+    var tot=(u.total!==undefined&&u.total!==null) ? u.total : '-';
+    html+='<div style="background:'+bg+';border:1px solid '+(i===0?'#FFC400':'#222')+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px">'
+      +'<div style="font-size:22px;width:32px;text-align:center">'+medal+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-weight:800;font-size:15px">'+(u.emoji||'')+' '+esc(u.unidade)+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:3px">Carrossel: '+carr+' pts</div>'
+      +'</div>'
+      +'<div style="font-size:24px;font-weight:800;color:#FFC400">'+tot+'</div>'
+      +'</div>';
+  });
 
-  // Ranking individual
-  // Dropdown de métricas
+  // ── RANKING INDIVIDUAL com dropdown ──────────────────────
   var selKey=state._rankMetrica||'presenca';
   var opcoes=[
-    {key:'presenca',    label:'🏅 Mais presenças',       campo:'presenca'},
-    {key:'pontualidade',label:'⏰ Mais pontuais',         campo:'pontualidade'},
-    {key:'exemplar',   label:'⭐ Mais exemplares (Bíb+Cam+Cls)', campo:'exemplar'},
-    {key:'visitas',    label:'👥 Unidades com mais visitas',campo:'visitas'}
+    {key:'presenca',    label:'🏅 Mais presenças'},
+    {key:'pontualidade',label:'⏰ Mais pontuais'},
+    {key:'exemplar',   label:'⭐ Mais exemplares (Bíb+Cam+Cls)'},
+    {key:'visitas',    label:'👥 Desbravador + visitas'}
   ];
-  html+='<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:8px">👤 RANKING INDIVIDUAL</div>';
-  html+='<div style="position:relative;margin-bottom:12px"><select onchange="state._rankMetrica=this.value;renderRanking()" style="width:100%;background:#141414;border:2px solid #FFC400;color:#FFC400;border-radius:10px;padding:10px 36px 10px 12px;font-size:14px;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none">'
+  html+='<div style="font-size:13px;font-weight:700;color:#FFC400;letter-spacing:1px;margin-bottom:8px;margin-top:4px">👤 RANKING INDIVIDUAL</div>';
+  html+='<div style="position:relative;margin-bottom:12px">'
+    +'<select onchange="state._rankMetrica=this.value;renderRanking()" style="width:100%;background:#141414;border:2px solid #FFC400;color:#FFC400;border-radius:10px;padding:10px 36px 10px 12px;font-size:14px;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none">'
     +opcoes.map(function(o){return'<option value="'+o.key+'"'+(selKey===o.key?' selected':'')+'>'+o.label+'</option>';}).join('')
-    +'</select><div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#FFC400;font-size:14px">▼</div></div>';
+    +'</select>'
+    +'<div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#FFC400;font-size:14px">▼</div>'
+    +'</div>';
 
-  // Calcular lista pela métrica
+  // Calcular lista
   var lista=[];
   if(selKey==='visitas'){
     lista=(r.visitas||[]);
@@ -774,10 +797,11 @@ function renderRanking() {
     var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
     var valor=selKey==='pontualidade'?(m.pontualidade||0)
       :selKey==='exemplar'?((m.biblia||0)+(m.camiseta||0)+(m.classe||0))
+      :selKey==='visitas'?(m.visitas||0)
       :(m.presenca||m.total||0);
     html+='<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px">'
       +'<div style="width:28px;text-align:center;font-size:'+(i<3?'18':'13')+'px">'+medal+'</div>'
-      +'<div style="flex:1"><div style="font-weight:700">'+esc(m.nome)+'</div>'
+      +'<div style="flex:1"><div style="font-weight:700">'+esc(m.nome||m.unidade||'')+'</div>'
       +(m.unidade?'<div style="font-size:11px;color:#888">'+esc(m.unidade)+'</div>':'')+'</div>'
       +'<div style="font-size:20px;font-weight:800;color:#FFC400">'+valor+'</div>'
       +'</div>';
@@ -1071,7 +1095,7 @@ function renderReuniaoAtiva(){
     +'<div style="font-size:11px;color:#666;margin-top:3px">'+t.usado+'min usados de '+t.disp+'min disponíveis</div>'
     +'</div>';
 
-  html+='<div id="_rativs_">';
+  html+='<div id="_rativs_drag_">';
   (r.atividades||[]).forEach(function(a,i){
     html+='<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">'
       +'<div style="flex:1"><input id="_anome_'+i+'" value="'+esc(a.nome)+'" placeholder="Nova atividade" oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:16px;font-weight:600;padding:2px 0;margin-bottom:4px"></div>'
