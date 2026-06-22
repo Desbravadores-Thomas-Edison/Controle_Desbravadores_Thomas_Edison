@@ -50,6 +50,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -224,6 +225,13 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Evitar zoom automático no iOS em qualquer input */
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
@@ -774,17 +782,15 @@ function startApp(){
       try{localStorage.setItem(CACHE_KEY,JSON.stringify(CTX));}catch(e){}
 
       if(r.roster){
-        // Roster já veio junto — renderizar direto sem segunda chamada
         state.rows=r.roster.rows; state.jaSalvo=!!(r.roster.jaSalvo);
-        if(CTX.role==='admin'){state.view='unidades';}
-      else if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
-        render();
-      } else {
-        // Admin com múltiplas unidades: renderizar seleção de unidade
-        if(CTX.role==='admin'){state.view='unidades';}
-      else if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
-        render();
       }
+      // Roteamento inicial
+      if(CTX.role==='admin'){
+        state.view='unidades';
+      } else if(!state.unit&&CTX.units&&CTX.units.length===1){
+        state.unit=CTX.units[0];
+      }
+      render();
     },
     function(e){
       // Se não tem cache, mostra erro; se tem cache, já está exibindo
@@ -869,61 +875,10 @@ function _carregarPainelUnidades() {
 
 function _carregarUnidade(unit) {
   state.unit = unit;
-  var seq = ++_navSeq;
-  var body = $('_unidBody_');
-  if (body) body.innerHTML = '<div class="load">Carregando '+esc(unit)+'…</div>';
-
-  callAPI('getRoster', {unit: unit, date: state.date}, function(r) {
-    if (_navSeq !== seq) return;
-    state.rows = r.rows; state.jaSalvo = !!(r.jaSalvo);
-    // Renderizar dentro do body da sub-aba
-    var bodyEl = $('_unidBody_');
-    if (!bodyEl) { renderLista(); return; }
-
-    // Construir o conteúdo da lista dentro do body
-    var html = '';
-    // Data editável
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-      + '<span style="font-size:12px;color:#aaa">📅</span>'
-      + '<input type="date" value="'+state.date+'" onchange="state.date=this.value;trocarUnidadesTab(\''+esc(unit)+'\')" style="background:transparent;border:none;border-bottom:1px solid #333;color:#FFC400;font-size:13px;padding:2px 4px;cursor:pointer">'
-      + '</div>';
-
-    // Stats
-    html += statsHtml();
-
-    // Lista de membros
-    state.rows.forEach(function(p, idx) {
-      html += rowHtml(p, idx);
-    });
-
-    // Adicionar visitante
-    html += '<div class="addrow" style="flex-wrap:wrap;gap:6px">'
-      + '<input id="vis" placeholder="Nome do visitante" style="flex:2;min-width:120px">'
-      + '<select id="vis_trouxe" style="flex:1;min-width:100px;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:8px;font-size:13px">'
-      + '<option value="">Quem trouxe?</option>'
-      + (state.rows.filter(function(r){return r.tipo!=='Visita';}).map(function(r){return'<option>'+esc(r.nome)+'</option>';}).join(''))
-      + '</select>'
-      + '<button class="addbtn" onclick="addVisita()">+ Visita</button></div>';
-
-    // Botão enviar
-    html += '<div style="height:16px"></div>';
-    html += '<button onclick="enviarPresenca()" style="width:100%;background:#FFC400;color:#000;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:4px">'
-      + (state.jaSalvo ? '✓ Atualizar Presença' : '✓ Enviar Presença') + '</button>';
-
-    html += '<div id="_rcard_"></div><div id="res"></div>';
-    bodyEl.innerHTML = html;
-
-    // Restaurar eventos de data
-    var dtInput = bodyEl.querySelector('input[type="date"]');
-    if (dtInput) dtInput.addEventListener('change', function(e){ state.date=e.target.value; trocarUnidadesTab(unit); });
-
-    refreshStats();
-  }, function(e) {
-    var body = $('_unidBody_');
-    if (body) body.innerHTML = '<div style="color:#e55;padding:20px">Erro: '+esc(e.message||e)+'</div>';
-  });
+  state.view = 'controle';
+  state._fromUnidades = true;
+  loadRoster();
 }
-
 // ══════════════════════════════════════════════════════════════
 // MÓDULO RANKING
 // ══════════════════════════════════════════════════════════════
@@ -1484,114 +1439,118 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ── Drag & Drop v5: elementFromPoint para mobile ──────────────
-var _ddFrom = null;
-var _ddOverIdx = null;
-var _ddContainer = null;
-var _ddListenersAdded = false;
-
-function _ddAddGlobalListeners() {
-  if (_ddListenersAdded) return;
-  _ddListenersAdded = true;
-
-  document.addEventListener('touchmove', function(e) {
-    if (_ddFrom === null || !_ddContainer) return;
-    e.preventDefault();
-    var touch = e.touches[0];
-
-    // elementFromPoint: encontra o elemento exato sob o dedo
-    var el = document.elementFromPoint(touch.clientX, touch.clientY);
-    while (el && !el.classList.contains('ativ-item')) el = el.parentElement;
-
-    _ddContainer.querySelectorAll('.ativ-item').forEach(function(item) {
-      item.style.outline = '';
-    });
-
-    if (el && el !== _ddContainer.querySelectorAll('.ativ-item')[_ddFrom]) {
-      el.style.outline = '2px solid #FFC400';
-      var items = Array.from(_ddContainer.querySelectorAll('.ativ-item'));
-      _ddOverIdx = items.indexOf(el);
-    } else {
-      _ddOverIdx = null;
-    }
-  }, {passive: false});
-
-  document.addEventListener('touchend', function() {
-    if (_ddFrom === null || !_ddContainer) return;
-    _ddContainer.querySelectorAll('.ativ-item').forEach(function(item) {
-      item.style.outline = ''; item.style.opacity = ''; item.style.transform = '';
-    });
-    var from = _ddFrom, to = _ddOverIdx;
-    _ddFrom = null; _ddOverIdx = null;
-    if (to !== null && to !== from) _ddReorder(from, to);
-  }, {passive: true});
-}
-
-function _ddReorder(from, to) {
+// ── Drag & Drop v6 + setas ────────────────────────────────────
+function moverAtiv(i, dir) {
   syncReuniaoState();
-  var arr = state._reuniaoAtiva.atividades;
-  var item = arr.splice(from, 1)[0];
-  arr.splice(to, 0, item);
+  var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
+  if (!arr) return;
+  var j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
   renderReuniaoAtiva();
 }
 
+// Drag global state
+var _dd = {from: null, container: null, over: null, added: false};
+
 function initDragDrop() {
-  var container = document.getElementById('_rativs_drag_');
-  if (!container) return;
-  _ddContainer = container;
-  _ddAddGlobalListeners();
+  var c = document.getElementById('_rativs_drag_');
+  if (!c) return;
+  _dd.container = c;
+
+  // Adicionar listeners globais só uma vez
+  if (!_dd.added) {
+    _dd.added = true;
+
+    document.addEventListener('touchmove', function(e) {
+      if (_dd.from === null) return;
+      e.preventDefault();
+      var t = e.touches[0];
+      // Encontrar item sob o dedo
+      var el = document.elementFromPoint(t.clientX, t.clientY);
+      while (el && !el.classList.contains('ativ-item')) el = el.parentElement;
+      if (_dd.container) {
+        var items = _dd.container.querySelectorAll('.ativ-item');
+        items.forEach(function(item) { item.style.outline = ''; });
+        if (el && el.classList.contains('ativ-item')) {
+          el.style.outline = '2px solid #FFC400';
+          _dd.over = Array.prototype.indexOf.call(items, el);
+        } else {
+          _dd.over = null;
+        }
+      }
+    }, {passive: false});
+
+    document.addEventListener('touchend', function() {
+      if (_dd.from === null) return;
+      if (_dd.container) {
+        _dd.container.querySelectorAll('.ativ-item').forEach(function(el) {
+          el.style.outline = ''; el.style.opacity = ''; el.style.transform = '';
+        });
+      }
+      var from = _dd.from, to = _dd.over;
+      _dd.from = null; _dd.over = null;
+      if (to !== null && to !== undefined && to !== from) {
+        syncReuniaoState();
+        var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
+        if (arr) {
+          var item = arr.splice(from, 1)[0];
+          arr.splice(to, 0, item);
+          renderReuniaoAtiva();
+        }
+      }
+    });
+  }
 
   var isMobile = window.matchMedia('(pointer: coarse)').matches;
-  var dragFrom = null;
 
-  container.querySelectorAll('.ativ-item').forEach(function(el, i) {
+  c.querySelectorAll('.ativ-item').forEach(function(el, i) {
     var handle = el.querySelector('.drag-handle');
     if (!handle) return;
-    // Inputs nunca são draggable
-    el.querySelectorAll('input').forEach(function(inp){ inp.setAttribute('draggable','false'); });
+    el.querySelectorAll('input').forEach(function(inp) { inp.setAttribute('draggable','false'); });
 
     if (isMobile) {
       el.removeAttribute('draggable');
       handle.addEventListener('touchstart', function(e) {
         e.preventDefault();
-        _ddFrom = i;
-        el.style.opacity = '0.5';
-        el.style.transform = 'scale(1.01)';
+        _dd.from = i;
+        el.style.opacity = '0.4';
+        el.style.transform = 'scale(1.02)';
       }, {passive: false});
     } else {
       el.setAttribute('draggable', 'true');
       el.addEventListener('dragstart', function(e) {
-        dragFrom = i;
+        _dd.from = i;
         e.dataTransfer.effectAllowed = 'move';
-        setTimeout(function(){ el.style.opacity = '0.45'; }, 0);
+        setTimeout(function() { el.style.opacity = '0.4'; }, 0);
       });
       el.addEventListener('dragend', function() {
         el.style.opacity = '';
-        container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
+        if (c) c.querySelectorAll('.ativ-item').forEach(function(x) { x.style.outline = ''; });
+        _dd.from = null;
       });
       el.addEventListener('dragover', function(e) {
         e.preventDefault();
-        container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
-        if (i !== dragFrom) el.style.outline = '2px solid #FFC400';
+        if (c) c.querySelectorAll('.ativ-item').forEach(function(x) { x.style.outline = ''; });
+        if (i !== _dd.from) el.style.outline = '2px solid #FFC400';
+        _dd.over = i;
       });
       el.addEventListener('drop', function(e) {
         e.preventDefault();
-        if (dragFrom !== null && dragFrom !== i) {
-          var from = dragFrom; dragFrom = null;
-          _ddReorder(from, i);
+        var from = _dd.from;
+        _dd.from = null;
+        if (from !== null && from !== i) {
+          syncReuniaoState();
+          var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
+          if (arr) {
+            var item = arr.splice(from, 1)[0];
+            arr.splice(i, 0, item);
+            renderReuniaoAtiva();
+          }
         }
       });
     }
   });
-}
-
-function moverAtiv(i, dir) {
-  syncReuniaoState();
-  var arr = state._reuniaoAtiva.atividades;
-  var j = i + dir;
-  if (j < 0 || j >= arr.length) return;
-  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
-  renderReuniaoAtiva();
 }
 
 var _agendaMap={};
