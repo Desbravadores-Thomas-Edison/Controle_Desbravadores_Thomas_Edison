@@ -52,6 +52,9 @@
 
 
 
+
+
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -311,6 +314,33 @@ input,select,textarea{font-size:16px!important;}
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -770,46 +800,39 @@ function scrollToActivePill(){
 
 function startApp(){
   var CACHE_KEY='te_ctx_'+TOKEN;
+  var hasCached=false;
 
-  // 1. Mostrar tela imediatamente se tiver cache
+  // 1. Mostrar imediatamente do cache se disponível
   try{
     var cached=localStorage.getItem(CACHE_KEY);
     if(cached){
       var cc=JSON.parse(cached);
       if(cc&&cc.ok){
         CTX=cc; state.date=CTX.hoje||hoje();
-        if(CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
-        render(); // mostra imediatamente com dados em cache
+        if(CTX.role==='admin'){state.view='unidades';}
+        else if(CTX.units&&CTX.units.length===1){state.unit=CTX.units[0];}
+        render();
+        hasCached=true;
       }
     }
   }catch(e){}
 
-  // 2. Chamada única: ctx + roster + settings juntos
+  // 2. Buscar dados frescos (apenas UMA chamada)
   callAPI('init',{date:hoje()},
     function(r){
       CTX=r.ctx; state.settings=r.settings||state.settings;
       state.date=CTX.hoje||hoje();
-
       if(!CTX.ok){erroTela('Link inválido ou expirado.<br>Peça um novo link ao administrador.');return;}
-
-      // Atualizar cache
       try{localStorage.setItem(CACHE_KEY,JSON.stringify(CTX));}catch(e){}
-
-      if(r.roster){
-        state.rows=r.roster.rows; state.jaSalvo=!!(r.roster.jaSalvo);
+      if(r.roster){state.rows=r.roster.rows;state.jaSalvo=!!(r.roster.jaSalvo);}
+      // SÓ renderiza de novo se não tinha cache (evita duplo carregamento e navSeq conflito)
+      if(!hasCached){
+        if(CTX.role==='admin'){state.view='unidades';}
+        else if(!state.unit&&CTX.units&&CTX.units.length===1){state.unit=CTX.units[0];}
+        render();
       }
-      // Roteamento inicial
-      if(CTX.role==='admin'){
-        state.view='unidades';
-      } else if(!state.unit&&CTX.units&&CTX.units.length===1){
-        state.unit=CTX.units[0];
-      }
-      render();
     },
-    function(e){
-      // Se não tem cache, mostra erro; se tem cache, já está exibindo
-      if(!CTX)erroTela('Erro ao conectar: '+(e.message||e));
-    }
+    function(e){if(!CTX)erroTela('Erro ao conectar: '+(e.message||e));}
   );
 }
 startApp();
@@ -819,7 +842,8 @@ startApp();
 function loadUnidades() {
   if (!CTX || CTX.role !== 'admin') { loadRoster(); return; }
   state.view = 'unidades';
-  if (!state.unidadesTab) state.unidadesTab = null; // null = painel overview
+  state._unidadesLoaded = true;
+  if (state.unidadesTab === undefined) state.unidadesTab = null;
   renderUnidades();
 }
 
@@ -841,9 +865,15 @@ function renderUnidades() {
 
   $('app').innerHTML = html;
   if (typeof scrollToActivePill === 'function') scrollToActivePill();
+  // Recarregar ao mudar data
+  var dtEl = $('dt');
+  if (dtEl) dtEl.addEventListener('change', function(e){
+    state.date = e.target.value;
+    if (state.unidadesTab) _carregarUnidade(state.unidadesTab);
+    else _carregarPainelUnidades();
+  });
 
   if (!tab) {
-    // Overview = painel do dia
     _carregarPainelUnidades();
   } else {
     _carregarUnidade(tab);
@@ -852,7 +882,7 @@ function renderUnidades() {
 
 function trocarUnidadesTab(u) {
   state.unidadesTab = u;
-  state.unit = u;
+  if (u) state.unit = u;
   renderUnidades();
 }
 
@@ -889,9 +919,47 @@ function _carregarPainelUnidades() {
 
 function _carregarUnidade(unit) {
   state.unit = unit;
-  state.view = 'controle';
-  state._fromUnidades = true;
-  loadRoster();
+  var seq = ++_navSeq;
+  var body = $('_unidBody_');
+  if (body) body.innerHTML = '<div class="load">Carregando '+esc(unit)+'…</div>';
+
+  callAPI('getRoster', {unit:unit, date:state.date}, function(r){
+    if (_navSeq !== seq) return;
+    state.rows = r.rows; state.jaSalvo = !!(r.jaSalvo);
+    var body = $('_unidBody_');
+    if (!body) return;
+
+    var banner = LOGOS&&LOGOS[unit] ? '<div style="display:flex;align-items:center;gap:12px;background:#141414;border:1px solid #222;border-radius:14px;padding:10px 14px;margin-bottom:12px"><img src="'+LOGOS[unit]+'" style="height:54px;flex-shrink:0;border-radius:8px"><div><div style="font-size:11px;color:#FFC400;font-weight:700;letter-spacing:1px">UNIDADE</div><div style="font-size:18px;font-weight:800">'+esc(unit)+'</div></div></div>' : '';
+    var aviso = state.jaSalvo ? '<div class="aviso">⚠️ Controle já enviado hoje — reenviar irá substituir.</div>' : '';
+    var visOpts = state.rows.filter(function(x){return x.tipo!=='Visita';}).map(function(x){return'<option>'+esc(x.nome)+'</option>';}).join('');
+
+    body.innerHTML = banner
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
+      +'<span style="font-size:12px;color:#aaa">📅</span>'
+      +'<input type="date" id="dt_unit" value="'+state.date+'" style="background:transparent;border:none;border-bottom:1px solid #333;color:#FFC400;font-size:13px;padding:2px 4px;cursor:pointer">'
+      +'</div>'
+      +'<div id="lista"></div>'
+      +'<div class="addrow" style="flex-wrap:wrap;gap:6px">'
+        +'<input id="vis" placeholder="Nome do visitante" style="flex:2;min-width:120px">'
+        +'<select id="vis_trouxe" style="flex:1;min-width:100px;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:8px;font-size:13px"><option value="">Quem trouxe?</option>'+visOpts+'</select>'
+        +'<button class="addbtn" onclick="addVisita()">+ Visita</button>'
+      +'</div>'
+      +statsHtml()+aviso
+      +'<div style="height:16px"></div>'
+      +'<button class="enviar" id="env" onclick="enviar()">'+(state.jaSalvo?'✓ Atualizar Presença':'✓ Enviar Presença')+'</button>'
+      +'<div id="_rcard_"></div><div id="res"></div>';
+
+    renderLista(); refreshStats();
+    // Data editável dentro da sub-aba
+    var dtU = document.getElementById('dt_unit');
+    if (dtU) dtU.addEventListener('change', function(e){
+      state.date = e.target.value;
+      trocarUnidadesTab(unit);
+    });
+  }, function(e){
+    var b = $('_unidBody_');
+    if (b) b.innerHTML = '<div style="color:#e55;padding:20px">Erro: '+esc(e.message||e)+'</div>';
+  });
 }
 // ══════════════════════════════════════════════════════════════
 // MÓDULO RANKING
@@ -1455,9 +1523,9 @@ function deletarProva(id){
 
 // ── Reordenação de atividades ────────────────────────────────
 function moverAtiv(i, dir) {
+  if(!state._reuniaoAtiva||!state._reuniaoAtiva.atividades)return;
   syncReuniaoState();
-  var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
-  if (!arr) return;
+  var arr = state._reuniaoAtiva.atividades;
   var j = i + dir;
   if (j < 0 || j >= arr.length) return;
   var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
@@ -1466,22 +1534,32 @@ function moverAtiv(i, dir) {
 
 function initDragDrop() {
   var container = document.getElementById('_rativs_drag_');
-  if (!container) return;
-  if (!window.Sortable) return; // Sortable ainda não carregou
+  if (!container || !window.Sortable) return;
 
-  new window.Sortable(container, {
+  // Destruir instância anterior se existe no container
+  if (container._sortableInst) {
+    try { container._sortableInst.destroy(); } catch(e){}
+    container._sortableInst = null;
+  }
+
+  container._sortableInst = new window.Sortable(container, {
     animation: 150,
     handle: '.drag-handle',
     ghostClass: 'sortable-ghost',
     chosenClass: 'sortable-chosen',
+    forceFallback: false,
     onEnd: function(evt) {
-      var from = evt.oldIndex, to = evt.newIndex;
+      var from = evt.oldDraggableIndex;
+      var to   = evt.newDraggableIndex;
+      if (from === undefined) from = evt.oldIndex;
+      if (to   === undefined) to   = evt.newIndex;
       if (from === to) return;
-      syncReuniaoState();
+      // Reordenar estado (sem re-render — Sortable já moveu o DOM)
       var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
       if (!arr) return;
       var item = arr.splice(from, 1)[0];
       arr.splice(to, 0, item);
+      // Re-render para corrigir índices dos botões ▲▼ e IDs
       renderReuniaoAtiva();
     }
   });
