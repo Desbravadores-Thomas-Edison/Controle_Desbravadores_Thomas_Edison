@@ -44,6 +44,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -218,6 +219,13 @@ input[type=date]{background:#141414;border:1px solid var(--ln);color:#fff;border
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 /* Evitar zoom automático no iOS em qualquer input */
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
@@ -1272,134 +1280,83 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ── Drag & Drop de atividades (funciona em mobile e desktop) ──
-
-var _dd = {
-  dragging: null,    // índice sendo arrastado
-  startY: 0,
-  clone: null,       // elemento visual que segue o dedo/mouse
-  placeholder: null, // espaço reservado na lista
-  items: [],         // refs aos elementos da lista
-  offsetY: 0
-};
+// ── Drag & Drop v2 — simples e confiável ──────────────────────
+var _dd = {active: null, overIdx: null};
 
 function initDragDrop() {
   var container = document.getElementById('_rativs_drag_');
   if (!container) return;
-  _dd.items = Array.from(container.querySelectorAll('.ativ-item'));
-  _dd.items.forEach(function(el, i) {
+
+  var items = container.querySelectorAll('.ativ-item');
+  items.forEach(function(el, i) {
     var handle = el.querySelector('.drag-handle');
     if (!handle) return;
 
-    // Desktop: mouse
-    handle.addEventListener('mousedown', function(e) {
+    // ── Desktop: HTML5 drag ──────────────────────────────────
+    el.setAttribute('draggable', 'true');
+    el.addEventListener('dragstart', function(e) {
+      _dd.active = i;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(function(){ el.style.opacity = '0.4'; }, 0);
+    });
+    el.addEventListener('dragend', function() {
+      el.style.opacity = '';
+      _finalizeDrop();
+    });
+    el.addEventListener('dragover', function(e) {
       e.preventDefault();
-      startDrag(i, el, e.clientY);
+      _dd.overIdx = i;
+      _highlightOver(container, i);
+    });
+    el.addEventListener('drop', function(e) {
+      e.preventDefault();
     });
 
-    // Mobile: touch
+    // ── Mobile: touch ────────────────────────────────────────
     handle.addEventListener('touchstart', function(e) {
+      _dd.active = i;
+      el.style.opacity = '0.4';
+      e.stopPropagation();
+    }, {passive: true});
+
+    handle.addEventListener('touchmove', function(e) {
+      if (_dd.active === null) return;
       e.preventDefault();
-      startDrag(i, el, e.touches[0].clientY);
+      var touch = e.touches[0];
+      var els = container.querySelectorAll('.ativ-item');
+      var found = null;
+      els.forEach(function(item, j) {
+        var rect = item.getBoundingClientRect();
+        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) found = j;
+      });
+      if (found !== null) { _dd.overIdx = found; _highlightOver(container, found); }
     }, {passive: false});
+
+    handle.addEventListener('touchend', function() {
+      var elems = container.querySelectorAll('.ativ-item');
+      elems.forEach(function(el){ el.style.opacity=''; el.style.outline=''; });
+      _finalizeDrop();
+    }, {passive: true});
   });
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', endDrag);
-  document.addEventListener('touchmove', function(e) {
-    if (_dd.dragging === null) return;
-    e.preventDefault();
-    onMove({clientY: e.touches[0].clientY});
-  }, {passive: false});
-  document.addEventListener('touchend', endDrag);
 }
 
-function startDrag(i, el, clientY) {
-  _dd.dragging = i;
-  _dd.startY = clientY;
-
-  var rect = el.getBoundingClientRect();
-  _dd.offsetY = clientY - rect.top;
-
-  // Clone visual que segue o dedo
-  var clone = el.cloneNode(true);
-  clone.style.cssText = 'position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;opacity:0.85;z-index:9999;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.6);border-radius:10px;transition:none';
-  document.body.appendChild(clone);
-  _dd.clone = clone;
-
-  // Placeholder no lugar original
-  var ph = document.createElement('div');
-  ph.style.cssText = 'height:'+rect.height+'px;background:#FFC40022;border:2px dashed #FFC400;border-radius:10px;margin-bottom:6px;transition:all .15s';
-  el.parentNode.insertBefore(ph, el);
-  el.style.display = 'none';
-  _dd.placeholder = ph;
-}
-
-function onMove(e) {
-  if (_dd.dragging === null || !_dd.clone) return;
-  var y = e.clientY;
-
-  // Mover o clone
-  _dd.clone.style.top = (y - _dd.offsetY) + 'px';
-
-  // Encontrar sobre qual item estamos
-  var container = document.getElementById('_rativs_drag_');
-  if (!container) return;
-  var items = Array.from(container.querySelectorAll('.ativ-item:not([style*="display: none"])'));
-
-  var after = null;
-  items.forEach(function(item) {
-    var rect = item.getBoundingClientRect();
-    var mid = rect.top + rect.height / 2;
-    if (y > mid) after = item;
+function _highlightOver(container, idx) {
+  container.querySelectorAll('.ativ-item').forEach(function(el, j) {
+    el.style.outline = (j === idx && j !== _dd.active) ? '2px solid #FFC400' : '';
   });
-
-  // Mover placeholder
-  if (after) {
-    after.parentNode.insertBefore(_dd.placeholder, after.nextSibling);
-  } else if (items.length > 0) {
-    container.insertBefore(_dd.placeholder, items[0]);
-  }
 }
 
-function endDrag() {
-  if (_dd.dragging === null) return;
-
-  // Remover clone
-  if (_dd.clone) { _dd.clone.remove(); _dd.clone = null; }
-
-  // Descobrir nova posição do placeholder
-  var container = document.getElementById('_rativs_drag_');
-  if (!container || !_dd.placeholder) { _dd.dragging = null; return; }
-
-  var allChildren = Array.from(container.children);
-  var newIdx = allChildren.indexOf(_dd.placeholder);
-  var oldIdx = _dd.dragging;
-
-  // Limpar
-  _dd.placeholder.remove();
-  _dd.placeholder = null;
-
-  // Restaurar elemento oculto
-  var items = container.querySelectorAll('.ativ-item');
-  if (items[oldIdx]) items[oldIdx].style.display = '';
-
-  _dd.dragging = null;
-
-  // Se moveu, reordenar
-  if (newIdx !== oldIdx && newIdx >= 0) {
-    syncReuniaoState();
-    var arr = state._reuniaoAtiva.atividades;
-    var item = arr.splice(oldIdx, 1)[0];
-    // Ajustar índice pois removemos um elemento
-    var insertAt = newIdx > oldIdx ? newIdx - 1 : newIdx;
-    arr.splice(insertAt, 0, item);
-    renderReuniaoAtiva();
-  }
-
-  document.removeEventListener('mousemove', onMove);
-  document.removeEventListener('mouseup', endDrag);
+function _finalizeDrop() {
+  var from = _dd.active, to = _dd.overIdx;
+  _dd.active = null; _dd.overIdx = null;
+  if (from === null || to === null || from === to) return;
+  syncReuniaoState();
+  var arr = state._reuniaoAtiva.atividades;
+  var item = arr.splice(from, 1)[0];
+  arr.splice(to, 0, item);
+  renderReuniaoAtiva();
 }
+
 
 var _agendaMap={};
 // Patch: substitui loadAgenda e renderAgenda com horários calculados e linhas alternadas
