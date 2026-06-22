@@ -51,6 +51,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -313,7 +314,17 @@ input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 </head>
 <body>
 <div class="wrap" id="app"><div class="load">Conectando…</div></div>
@@ -537,10 +548,13 @@ function abrirClasseMembro(nome,unit,classeAlvo){
 
 function render(){
   if(!CTX||!CTX.ok){erroTela('Acesso inválido. Use o seu link pessoal.');return;}
-  if(state.view==='painel'){renderPainel();return;}
+  // Admin: todas as views de unidade vão para Unidades
+  if(CTX.role==='admin'&&(state.view==='controle'||state.view==='unidades'||state.view==='painel')){loadUnidades();return;}
+  if(state.view==='unidades'||state.view==='painel'){loadUnidades();return;}
   if(state.view==='ranking'){loadRanking();return;}
   if(state.view==='reuniao'){loadReuniao();return;}
   if(state.view==='especialidades'){loadEspecialidades();return;}
+  if(state.view==='esp_tab'){loadEspecialidadesTab();return;}
   var banner='';
   if(state.unit&&LOGOS&&LOGOS[state.unit]){
     banner='<div style="display:flex;align-items:center;gap:12px;background:#141414;border:1px solid #222;border-radius:14px;padding:12px 16px;margin-bottom:12px">'
@@ -1439,7 +1453,7 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ── Drag & Drop v6 + setas ────────────────────────────────────
+// ── Reordenação de atividades ────────────────────────────────
 function moverAtiv(i, dir) {
   syncReuniaoState();
   var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
@@ -1450,105 +1464,25 @@ function moverAtiv(i, dir) {
   renderReuniaoAtiva();
 }
 
-// Drag global state
-var _dd = {from: null, container: null, over: null, added: false};
-
 function initDragDrop() {
-  var c = document.getElementById('_rativs_drag_');
-  if (!c) return;
-  _dd.container = c;
+  var container = document.getElementById('_rativs_drag_');
+  if (!container) return;
+  if (!window.Sortable) return; // Sortable ainda não carregou
 
-  // Adicionar listeners globais só uma vez
-  if (!_dd.added) {
-    _dd.added = true;
-
-    document.addEventListener('touchmove', function(e) {
-      if (_dd.from === null) return;
-      e.preventDefault();
-      var t = e.touches[0];
-      // Encontrar item sob o dedo
-      var el = document.elementFromPoint(t.clientX, t.clientY);
-      while (el && !el.classList.contains('ativ-item')) el = el.parentElement;
-      if (_dd.container) {
-        var items = _dd.container.querySelectorAll('.ativ-item');
-        items.forEach(function(item) { item.style.outline = ''; });
-        if (el && el.classList.contains('ativ-item')) {
-          el.style.outline = '2px solid #FFC400';
-          _dd.over = Array.prototype.indexOf.call(items, el);
-        } else {
-          _dd.over = null;
-        }
-      }
-    }, {passive: false});
-
-    document.addEventListener('touchend', function() {
-      if (_dd.from === null) return;
-      if (_dd.container) {
-        _dd.container.querySelectorAll('.ativ-item').forEach(function(el) {
-          el.style.outline = ''; el.style.opacity = ''; el.style.transform = '';
-        });
-      }
-      var from = _dd.from, to = _dd.over;
-      _dd.from = null; _dd.over = null;
-      if (to !== null && to !== undefined && to !== from) {
-        syncReuniaoState();
-        var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
-        if (arr) {
-          var item = arr.splice(from, 1)[0];
-          arr.splice(to, 0, item);
-          renderReuniaoAtiva();
-        }
-      }
-    });
-  }
-
-  var isMobile = window.matchMedia('(pointer: coarse)').matches;
-
-  c.querySelectorAll('.ativ-item').forEach(function(el, i) {
-    var handle = el.querySelector('.drag-handle');
-    if (!handle) return;
-    el.querySelectorAll('input').forEach(function(inp) { inp.setAttribute('draggable','false'); });
-
-    if (isMobile) {
-      el.removeAttribute('draggable');
-      handle.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        _dd.from = i;
-        el.style.opacity = '0.4';
-        el.style.transform = 'scale(1.02)';
-      }, {passive: false});
-    } else {
-      el.setAttribute('draggable', 'true');
-      el.addEventListener('dragstart', function(e) {
-        _dd.from = i;
-        e.dataTransfer.effectAllowed = 'move';
-        setTimeout(function() { el.style.opacity = '0.4'; }, 0);
-      });
-      el.addEventListener('dragend', function() {
-        el.style.opacity = '';
-        if (c) c.querySelectorAll('.ativ-item').forEach(function(x) { x.style.outline = ''; });
-        _dd.from = null;
-      });
-      el.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        if (c) c.querySelectorAll('.ativ-item').forEach(function(x) { x.style.outline = ''; });
-        if (i !== _dd.from) el.style.outline = '2px solid #FFC400';
-        _dd.over = i;
-      });
-      el.addEventListener('drop', function(e) {
-        e.preventDefault();
-        var from = _dd.from;
-        _dd.from = null;
-        if (from !== null && from !== i) {
-          syncReuniaoState();
-          var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
-          if (arr) {
-            var item = arr.splice(from, 1)[0];
-            arr.splice(i, 0, item);
-            renderReuniaoAtiva();
-          }
-        }
-      });
+  new window.Sortable(container, {
+    animation: 150,
+    handle: '.drag-handle',
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd: function(evt) {
+      var from = evt.oldIndex, to = evt.newIndex;
+      if (from === to) return;
+      syncReuniaoState();
+      var arr = state._reuniaoAtiva && state._reuniaoAtiva.atividades;
+      if (!arr) return;
+      var item = arr.splice(from, 1)[0];
+      arr.splice(to, 0, item);
+      renderReuniaoAtiva();
     }
   });
 }
