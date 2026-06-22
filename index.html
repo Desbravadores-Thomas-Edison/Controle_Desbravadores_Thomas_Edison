@@ -48,6 +48,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -289,6 +290,13 @@ input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -368,6 +376,7 @@ var TOKEN=(typeof _TK!=='undefined'&&_TK)?_TK:((location.search.match(/[?&]k=([^
 var CTX=null;
 var COLS=[['presenca','Presença'],['pontualidade','Pontualidade'],['biblia','Bíblia'],['camiseta','Camiseta'],['classe','Classe']];
 var state={unit:null,date:hoje(),rows:[],jaSalvo:false,view:'controle',settings:{classesVisiveis:{},rankingVisivel:true}};
+var _navSeq=0; // incrementa a cada navegação — cancela respostas de abas antigas
 var UNITS=['Leão','Panda','Tigre','Puma'];
 var CLASSE_COR={'Amigo':'#1a6fdb','Companheiro':'#d92b2b','Pesquisador':'#1a9e3f','Pioneiro':'#cccccc','Excursionista':'#8b2fc9','Guia':'#d4b800','Líder':'#60a5fa','Líder Master':'#818cf8','Líder Master Avançado':'#e879f9'};
 var EMOJI={'Leão':'🦁','Panda':'🐼','Tigre':'🐯','Puma':'🐆'};
@@ -398,10 +407,10 @@ function header(){
   }
   var extra='';
   if(CTX&&CTX.role==='admin'){
-    extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
+    extra='<button class="pill'+(['unidades','painel','controle'].indexOf(state.view)>=0?' on':'')+'" onclick="loadUnidades()" style="white-space:nowrap">🏠 Unidades</button>'
+      +'<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
       +'<button class="pill'+(state.view==='esp_tab'?' on':'')+'" onclick="loadEspecialidadesTab()" style="white-space:nowrap">⭐ Especialidades</button>'
-      +'<button class="pill'+(state.view==='painel'?' on':'')+'" onclick="togglePainel()" style="white-space:nowrap">📊 Painel</button>'
       +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()" style="white-space:nowrap">🏆 Ranking</button>';
   } else {
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
@@ -604,6 +613,7 @@ function togglePainel(){
   else{state.view='controle';if(state.unit)loadRoster();else render();}
 }
 function loadPainel(){
+  var seq=++_navSeq;
   state.view='painel';
   $('app').innerHTML=header()+'<div class="load">Calculando…</div>';
   if(typeof scrollToActivePill==='function')scrollToActivePill();
@@ -758,11 +768,13 @@ function startApp(){
       if(r.roster){
         // Roster já veio junto — renderizar direto sem segunda chamada
         state.rows=r.roster.rows; state.jaSalvo=!!(r.roster.jaSalvo);
-        if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
+        if(CTX.role==='admin'){state.view='unidades';}
+      else if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
         render();
       } else {
         // Admin com múltiplas unidades: renderizar seleção de unidade
-        if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
+        if(CTX.role==='admin'){state.view='unidades';}
+      else if(!state.unit&&CTX.units&&CTX.units.length===1)state.unit=CTX.units[0];
         render();
       }
     },
@@ -774,16 +786,117 @@ function startApp(){
 }
 startApp();
 
+// ══ UNIDADES (aba unificada para admin) ══════════════════════
+
+function loadUnidades() {
+  if (!CTX || CTX.role !== 'admin') { loadRoster(); return; }
+  state.view = 'unidades';
+  if (!state.unidadesTab) state.unidadesTab = 'adm';
+  renderUnidades();
+}
+
+function renderUnidades() {
+  var html = header();
+  var allUnits = (CTX && CTX.allUnits) ? CTX.allUnits : UNITS;
+  var tab = state.unidadesTab || 'adm';
+
+  // Sub-abas: ADM + unidades dinâmicas
+  html += '<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;-webkit-overflow-scrolling:touch;scrollbar-width:none" class="pills-row">';
+  html += '<button class="pill'+(tab==='adm'?' on':'')+'" onclick="trocarUnidadesTab(\'adm\')" style="white-space:nowrap">📊 ADM</button>';
+  allUnits.forEach(function(u) {
+    var emoji = EMOJI[u] || '🏕';
+    html += '<button class="pill'+(tab===u?' on':'')+'" onclick="trocarUnidadesTab(\''+esc(u)+'\')" style="white-space:nowrap">'+emoji+' '+esc(u)+'</button>';
+  });
+  html += '</div>';
+
+  // Conteúdo da sub-aba
+  html += '<div id="_unidBody_">';
+  if (tab === 'adm') {
+    html += '<div class="load">Carregando painel…</div>';
+  } else {
+    html += '<div class="load">Carregando '+esc(tab)+'…</div>';
+  }
+  html += '</div>';
+
+  $('app').innerHTML = html;
+  if (typeof scrollToActivePill === 'function') scrollToActivePill();
+
+  // Carregar conteúdo
+  if (tab === 'adm') {
+    _carregarPainelUnidades();
+  } else {
+    _carregarUnidade(tab);
+  }
+}
+
+function trocarUnidadesTab(tab) {
+  state.unidadesTab = tab;
+  if (tab !== 'adm') {
+    state.unit = tab;
+  }
+  renderUnidades();
+}
+
+function _carregarPainelUnidades() {
+  var seq = ++_navSeq;
+  callAPI('getPanel', {date: state.date}, function(r) {
+    if (_navSeq !== seq) return;
+    var body = $('_unidBody_');
+    if (!body) return;
+    // Reusar renderPainel mas injetando no body da sub-aba
+    var html = '';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 14px;background:#141414;border:1px solid #222;border-radius:10px">'
+      + '<span style="font-size:12px;color:#aaa">📅 Painel do dia:</span>'
+      + '<input type="date" id="painelDt" value="'+state.date+'" onchange="state.date=this.value;_carregarPainelUnidades()" style="background:transparent;border:none;border-bottom:1px solid #555;color:#FFC400;font-size:14px;font-weight:800;padding:2px 4px;cursor:pointer;flex:1">'
+      + '</div>';
+    html += '<table class="ptable"><tr><th>Unidade</th><th>Pres.</th><th>Atr.</th><th>Aus.</th><th>Total</th></tr>';
+    (r.unidades||[]).forEach(function(u) {
+      var tot = u.presentes + u.atrasos + u.ausencias;
+      html += '<tr onclick="trocarUnidadesTab(\''+esc(u.unidade)+'\')" style="cursor:pointer">'
+        + '<td>'+(EMOJI[u.unidade]||'')+' '+esc(u.unidade)+'</td>'
+        + '<td style="color:#4ade80">'+u.presentes+'</td>'
+        + '<td style="color:#FFC400">'+u.atrasos+'</td>'
+        + '<td style="color:#e55">'+u.ausencias+'</td>'
+        + '<td style="font-weight:800">'+tot+'</td>'
+        + '</tr>';
+    });
+    html += '</table>';
+    body.innerHTML = html;
+  }, function(e) {
+    var body = $('_unidBody_');
+    if (body) body.innerHTML = '<div style="color:#e55;padding:20px">Erro: '+esc(e.message||'')+'</div>';
+  });
+}
+
+function _carregarUnidade(unit) {
+  state.unit = unit;
+  state.view = 'controle';
+  // Usa loadRoster existente com um back-button para Unidades
+  state._fromUnidades = true;
+  loadRoster();
+}
+
+function _subTabsHtml(activeUnit) {
+  var allUnits = (CTX && CTX.allUnits) ? CTX.allUnits : UNITS;
+  var html = '<button class="pill'+(activeUnit==='adm'?' on':'')+'" onclick="trocarUnidadesTab(\'adm\')" style="white-space:nowrap">📊 ADM</button>';
+  allUnits.forEach(function(u) {
+    html += '<button class="pill'+(activeUnit===u?' on':'')+'" onclick="trocarUnidadesTab(\''+esc(u)+'\')" style="white-space:nowrap">'+(EMOJI[u]||'🏕')+' '+esc(u)+'</button>';
+  });
+  return html;
+}
+
 // ══════════════════════════════════════════════════════════════
 // MÓDULO RANKING
 // ══════════════════════════════════════════════════════════════
 function loadRanking() {
+  var seq=++_navSeq;
   state.view = 'ranking';
   $('app').innerHTML = header() + '<div class="load">Calculando ranking…</div>';
   if(typeof scrollToActivePill==='function')scrollToActivePill();
   $('dt') && $('dt').addEventListener('change', function(e){ state.date=e.target.value; });
   var periodo = {ini: state.rankIni || '', fim: state.rankFim || state.date};
   callAPI('getRanking', {periodo: periodo}, function(r) {
+    if(typeof _navSeq!=='undefined'&&_navSeq!==seq)return;
     state._ranking = r;
     renderRanking();
   }, function(e){ erroTela('Erro ranking: '+(e.message||e)); });
@@ -1332,115 +1445,94 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ── Reordenação: drag no desktop, ▲▼ no mobile ────────────────
-var _isMobile = ('ontouchstart' in window);
+// ── Drag & Drop FINAL ─────────────────────────────────────────
+// Listeners de documento adicionados UMA VEZ (fora de initDragDrop)
+var _ddFrom = null;
+var _ddContainer = null;
+var _ddListenersAdded = false;
 
-function initDragDrop() {
-  if (_isMobile) return; // mobile usa só ▲▼
-  var container = document.getElementById('_rativs_drag_');
-  if (!container) return;
-  var items = container.querySelectorAll('.ativ-item');
-  var dragFrom = null;
+function _ddAddGlobalListeners() {
+  if (_ddListenersAdded) return;
+  _ddListenersAdded = true;
 
-  items.forEach(function(el, i) {
-    el.setAttribute('draggable', 'true');
+  // Mobile: touchmove e touchend globais
+  document.addEventListener('touchmove', function(e) {
+    if (_ddFrom === null || !_ddContainer) return;
+    e.preventDefault();
+    var y = e.touches[0].clientY;
+    _ddContainer.querySelectorAll('.ativ-item').forEach(function(item, j) {
+      var rect = item.getBoundingClientRect();
+      item.style.outline = (y >= rect.top && y <= rect.bottom && j !== _ddFrom)
+        ? '2px solid #FFC400' : '';
+    });
+  }, {passive: false});
 
-    el.addEventListener('dragstart', function(e) {
-      dragFrom = i;
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(function(){ el.style.opacity='0.45'; }, 0);
+  document.addEventListener('touchend', function(e) {
+    if (_ddFrom === null || !_ddContainer) return;
+    var y = e.changedTouches[0].clientY;
+    var toIdx = null;
+    _ddContainer.querySelectorAll('.ativ-item').forEach(function(item, j) {
+      item.style.outline = ''; item.style.opacity = ''; item.style.transform = '';
+      var rect = item.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) toIdx = j;
     });
-    el.addEventListener('dragend', function() {
-      el.style.opacity = '';
-      container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
-    });
-    el.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
-      if (i !== dragFrom) el.style.outline='2px solid #FFC400';
-    });
-    el.addEventListener('drop', function(e) {
-      e.preventDefault();
-      if (dragFrom !== null && dragFrom !== i) {
-        syncReuniaoState();
-        var arr = state._reuniaoAtiva.atividades;
-        var item = arr.splice(dragFrom, 1)[0];
-        arr.splice(i, 0, item);
-        dragFrom = null;
-        renderReuniaoAtiva();
-      }
-    });
-  });
+    var from = _ddFrom; _ddFrom = null;
+    if (toIdx !== null && toIdx !== from) _ddReorder(from, toIdx);
+  }, {passive: true});
 }
 
-function moverAtiv(i, dir) {
+function _ddReorder(from, to) {
   syncReuniaoState();
   var arr = state._reuniaoAtiva.atividades;
-  var j = i + dir;
-  if (j < 0 || j >= arr.length) return;
-  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  var item = arr.splice(from, 1)[0];
+  arr.splice(to, 0, item);
   renderReuniaoAtiva();
 }
 
-
-function duplicarReuniao(id){
-  var r=(state._reunioes||[]).find(function(x){return x.id===id;});
-  if(!r)return;
-  var copia=JSON.parse(JSON.stringify(r));
-  copia.id=null;
-  copia.nome=r.nome+' (cópia)';
-  copia.publicadaData='';
-  state._reuniaoAtiva=copia;
-  renderReuniaoAtiva();
-}
-
-// ── Drag & Drop v4: touch (mobile) + mouse (desktop) ──────────
 function initDragDrop() {
   var container = document.getElementById('_rativs_drag_');
   if (!container) return;
+  _ddContainer = container;
 
-  var isMobile = ('ontouchstart' in window);
-  var dragFrom = null;
+  // Detectar touch de forma confiável
+  var isMobile = (window.matchMedia('(pointer: coarse)').matches);
 
-  function cleanup() {
-    container.querySelectorAll('.ativ-item').forEach(function(x){
-      x.style.outline=''; x.style.opacity=''; x.style.transform='';
-    });
-  }
+  // Garantir listeners globais adicionados uma vez
+  _ddAddGlobalListeners();
 
-  function doReorder(from, to) {
-    cleanup();
-    syncReuniaoState();
-    var arr = state._reuniaoAtiva.atividades;
-    var item = arr.splice(from, 1)[0];
-    arr.splice(to, 0, item);
-    dragFrom = null;
-    renderReuniaoAtiva();
-  }
+  var dragFrom = null; // variável local para drag desktop
 
   container.querySelectorAll('.ativ-item').forEach(function(el, i) {
     var handle = el.querySelector('.drag-handle');
     if (!handle) return;
 
     if (isMobile) {
-      // ── Mobile: touch no handle ─────────────────────────────
-      // {passive:false} é obrigatório para preventDefault funcionar no iOS
+      // Desabilitar draggable no mobile (evita retângulo nativo do iOS/Android)
+      el.removeAttribute('draggable');
+      // Desabilitar drag em inputs para não conflitar
+      el.querySelectorAll('input').forEach(function(inp){ inp.setAttribute('draggable','false'); });
+
       handle.addEventListener('touchstart', function(e) {
-        e.preventDefault(); // bloqueia o drag nativo do iOS
-        dragFrom = i;
+        e.preventDefault();
+        _ddFrom = i;
         el.style.opacity = '0.5';
         el.style.transform = 'scale(1.01)';
       }, {passive: false});
 
     } else {
-      // ── Desktop: HTML5 drag ─────────────────────────────────
+      // Desktop: HTML5 drag — desabilitar nos inputs para não conflitar com seleção de texto
+      el.querySelectorAll('input').forEach(function(inp){ inp.setAttribute('draggable','false'); });
       el.setAttribute('draggable', 'true');
+
       el.addEventListener('dragstart', function(e) {
         dragFrom = i;
         e.dataTransfer.effectAllowed = 'move';
-        setTimeout(function(){ el.style.opacity='0.45'; }, 0);
+        setTimeout(function(){ el.style.opacity = '0.45'; }, 0);
       });
-      el.addEventListener('dragend', function() { cleanup(); });
+      el.addEventListener('dragend', function() {
+        el.style.opacity = '';
+        container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
+      });
       el.addEventListener('dragover', function(e) {
         e.preventDefault();
         container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
@@ -1448,37 +1540,13 @@ function initDragDrop() {
       });
       el.addEventListener('drop', function(e) {
         e.preventDefault();
-        if (dragFrom !== null && dragFrom !== i) doReorder(dragFrom, i);
+        if (dragFrom !== null && dragFrom !== i) {
+          var from = dragFrom; dragFrom = null;
+          _ddReorder(from, i);
+        }
       });
     }
   });
-
-  if (isMobile) {
-    // Tracking global do toque (fora do handle para não perder o dedo)
-    document.addEventListener('touchmove', function(e) {
-      if (dragFrom === null) return;
-      e.preventDefault();
-      var y = e.touches[0].clientY;
-      container.querySelectorAll('.ativ-item').forEach(function(item, j) {
-        var rect = item.getBoundingClientRect();
-        var over = (y >= rect.top && y <= rect.bottom && j !== dragFrom);
-        item.style.outline = over ? '2px solid #FFC400' : '';
-      });
-    }, {passive: false});
-
-    document.addEventListener('touchend', function(e) {
-      if (dragFrom === null) return;
-      var y = e.changedTouches[0].clientY;
-      var toIdx = null;
-      container.querySelectorAll('.ativ-item').forEach(function(item, j) {
-        var rect = item.getBoundingClientRect();
-        if (y >= rect.top && y <= rect.bottom) toIdx = j;
-      });
-      var from = dragFrom;
-      if (toIdx !== null && toIdx !== from) doReorder(from, toIdx);
-      else { dragFrom = null; cleanup(); }
-    }, {passive: true});
-  }
 }
 
 function moverAtiv(i, dir) {
@@ -1606,12 +1674,14 @@ function compartilharAgendaObj(el){
 var CLASSES_ESP=['Amigo','Companheiro','Pesquisador','Pioneiro','Excursionista','Guia','Líder','Líder Master','Líder Master Avançado'];
 
 function loadEspecialidades(){
+  var seq=++_navSeq;
   state.view='especialidades';
   var reqId=Date.now(); state._espReqId=reqId;
   $('app').innerHTML=header()+'<div class="load">Carregando classes…</div>';
   if(typeof scrollToActivePill==='function')scrollToActivePill();
   callAPI('getEspecialidades',{},function(r){
     if(state._espReqId!==reqId||state.view!=='especialidades')return;
+    if(typeof _navSeq!=='undefined'&&_navSeq!==seq)return;
     state._esp=r;
     if(!state._espOpen)state._espOpen={};
     if(!state._espEdits)state._espEdits={};
@@ -1789,12 +1859,14 @@ function salvarMembroInline(key){
 // ══ ESPECIALIDADES (aba nova) ══════════════════════════════════
 
 function loadEspecialidadesTab(){
+  var seq=++_navSeq;
   state.view='esp_tab';
   var reqId=Date.now(); state._espTabReqId=reqId;
   $('app').innerHTML=header()+'<div class="load">Carregando especialidades…</div>';
   if(typeof scrollToActivePill==='function')scrollToActivePill();
   callAPI('getEspecialidadesApp',{},function(r){
     if(state._espTabReqId!==reqId||state.view!=='esp_tab')return;
+    if(typeof _navSeq!=='undefined'&&_navSeq!==seq)return;
     state._espTab=r;
     if(!state._espTabOpen)state._espTabOpen={};
     if(!state._espTabEdits)state._espTabEdits={};
