@@ -45,6 +45,9 @@
 
 
 
+
+
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -265,6 +268,27 @@ input,select,textarea{font-size:16px!important;}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
 </style>
 </head>
 <body>
@@ -297,12 +321,47 @@ function hoje(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+
 function fmtBR(s){if(!s)return'';var p=String(s).substring(0,10).split('-');if(p.length===3&&p[0].length===4)return p[2]+'/'+p[1]+'/'+p[0];return s;}
 function erroTela(msg){$('app').innerHTML='<div style="color:#e88;padding:20px;font-size:13px;line-height:1.6">'+msg+'<br><br><a href="javascript:location.reload()" style="color:#FFC400">⟳ Recarregar</a></div>';}
 
+function mostrarToast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06310f;padding:10px 22px;border-radius:20px;font-weight:800;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){
+    t.style.transition='opacity .4s';t.style.opacity='0';
+    setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);
+  },2000);
+}
+
+var _apiInFlight={}; // ações de escrita em andamento (evita duplo-clique)
+var _writeActions=['saveAttendance','saveCarrossel','saveProva','deleteProva','saveReuniao','deleteReuniao','publishReuniao','saveMembro','saveEspecialidadeMembro','addEspecialidade','saveSettings'];
+
 function callAPI(action,params,onSuccess,onFailure){
+  // Bloqueia duplo-clique: se a mesma ação de escrita já está rodando, ignora
+  if(_writeActions.indexOf(action)>=0){
+    if(_apiInFlight[action]){return;}
+    _apiInFlight[action]=true;
+  }
+  function done(){if(_writeActions.indexOf(action)>=0)delete _apiInFlight[action];}
+
   var body=JSON.stringify(Object.assign({action:action,token:TOKEN},params||{}));
-  fetch(GAS_URL,{method:'POST',body:body})
+  var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var timedOut=false;
+  var timer=setTimeout(function(){
+    timedOut=true;
+    if(ctrl)ctrl.abort();
+  },30000); // 30s
+
+  var opts={method:'POST',body:body};
+  if(ctrl)opts.signal=ctrl.signal;
+
+  fetch(GAS_URL,opts)
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-    .then(function(d){if(d.ok)onSuccess(d.data);else onFailure(new Error(d.error||'Erro'));})
-    .catch(function(e){onFailure(e);});
+    .then(function(d){clearTimeout(timer);done();if(d.ok)onSuccess(d.data);else onFailure(new Error(d.error||'Erro'));})
+    .catch(function(e){
+      clearTimeout(timer);done();
+      if(timedOut)onFailure(new Error('A conexão demorou demais. Verifique sua internet e tente novamente.'));
+      else onFailure(e);
+    });
 }
 
 var TOKEN=(typeof _TK!=='undefined'&&_TK)?_TK:((location.search.match(/[?&]k=([^&]*)/)||[])[1]||'');
@@ -883,14 +942,6 @@ function confirmarCarrossel() {
   );
 }
 
-function mostrarToast(msg){
-  var t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06310f;padding:10px 22px;border-radius:20px;font-weight:800;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none';
-  t.textContent=msg;
-  document.body.appendChild(t);
-  setTimeout(function(){t.style.transition='opacity .4s';t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);},2000);
-}
-
 // ══ REUNIÃO v3 ════════════════════════════════════════════════
 function loadReuniao(){
   state.view='reuniao';
@@ -994,6 +1045,7 @@ function renderPlanejar(){
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
         +'<button onclick="abrirReuniao('+r.id+')" style="background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️ Editar</button>'
+        +'<button onclick="duplicarReuniao('+r.id+')" style="background:#1c1c1c;color:#aaa;border:1px solid #555;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">⧉ Duplicar</button>'
         +'<button onclick="publicarModal('+r.id+')" style="background:#0d1f12;color:#4ade80;border:1px solid #4ade80;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">📢 Publicar</button>'
         +'<button onclick="deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:2px">×</button>'
         +'</div></div></div>';
@@ -1280,83 +1332,163 @@ function deletarProva(id){
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
-// ── Drag & Drop v2 — simples e confiável ──────────────────────
-var _dd = {active: null, overIdx: null};
+// ── Reordenação: drag no desktop, ▲▼ no mobile ────────────────
+var _isMobile = ('ontouchstart' in window);
 
+function initDragDrop() {
+  if (_isMobile) return; // mobile usa só ▲▼
+  var container = document.getElementById('_rativs_drag_');
+  if (!container) return;
+  var items = container.querySelectorAll('.ativ-item');
+  var dragFrom = null;
+
+  items.forEach(function(el, i) {
+    el.setAttribute('draggable', 'true');
+
+    el.addEventListener('dragstart', function(e) {
+      dragFrom = i;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(function(){ el.style.opacity='0.45'; }, 0);
+    });
+    el.addEventListener('dragend', function() {
+      el.style.opacity = '';
+      container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
+    });
+    el.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
+      if (i !== dragFrom) el.style.outline='2px solid #FFC400';
+    });
+    el.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (dragFrom !== null && dragFrom !== i) {
+        syncReuniaoState();
+        var arr = state._reuniaoAtiva.atividades;
+        var item = arr.splice(dragFrom, 1)[0];
+        arr.splice(i, 0, item);
+        dragFrom = null;
+        renderReuniaoAtiva();
+      }
+    });
+  });
+}
+
+function moverAtiv(i, dir) {
+  syncReuniaoState();
+  var arr = state._reuniaoAtiva.atividades;
+  var j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  renderReuniaoAtiva();
+}
+
+
+function duplicarReuniao(id){
+  var r=(state._reunioes||[]).find(function(x){return x.id===id;});
+  if(!r)return;
+  var copia=JSON.parse(JSON.stringify(r));
+  copia.id=null;
+  copia.nome=r.nome+' (cópia)';
+  copia.publicadaData='';
+  state._reuniaoAtiva=copia;
+  renderReuniaoAtiva();
+}
+
+// ── Drag & Drop v4: touch (mobile) + mouse (desktop) ──────────
 function initDragDrop() {
   var container = document.getElementById('_rativs_drag_');
   if (!container) return;
 
-  var items = container.querySelectorAll('.ativ-item');
-  items.forEach(function(el, i) {
+  var isMobile = ('ontouchstart' in window);
+  var dragFrom = null;
+
+  function cleanup() {
+    container.querySelectorAll('.ativ-item').forEach(function(x){
+      x.style.outline=''; x.style.opacity=''; x.style.transform='';
+    });
+  }
+
+  function doReorder(from, to) {
+    cleanup();
+    syncReuniaoState();
+    var arr = state._reuniaoAtiva.atividades;
+    var item = arr.splice(from, 1)[0];
+    arr.splice(to, 0, item);
+    dragFrom = null;
+    renderReuniaoAtiva();
+  }
+
+  container.querySelectorAll('.ativ-item').forEach(function(el, i) {
     var handle = el.querySelector('.drag-handle');
     if (!handle) return;
 
-    // ── Desktop: HTML5 drag ──────────────────────────────────
-    el.setAttribute('draggable', 'true');
-    el.addEventListener('dragstart', function(e) {
-      _dd.active = i;
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(function(){ el.style.opacity = '0.4'; }, 0);
-    });
-    el.addEventListener('dragend', function() {
-      el.style.opacity = '';
-      _finalizeDrop();
-    });
-    el.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      _dd.overIdx = i;
-      _highlightOver(container, i);
-    });
-    el.addEventListener('drop', function(e) {
-      e.preventDefault();
-    });
+    if (isMobile) {
+      // ── Mobile: touch no handle ─────────────────────────────
+      // {passive:false} é obrigatório para preventDefault funcionar no iOS
+      handle.addEventListener('touchstart', function(e) {
+        e.preventDefault(); // bloqueia o drag nativo do iOS
+        dragFrom = i;
+        el.style.opacity = '0.5';
+        el.style.transform = 'scale(1.01)';
+      }, {passive: false});
 
-    // ── Mobile: touch ────────────────────────────────────────
-    handle.addEventListener('touchstart', function(e) {
-      _dd.active = i;
-      el.style.opacity = '0.4';
-      e.stopPropagation();
-    }, {passive: true});
-
-    handle.addEventListener('touchmove', function(e) {
-      if (_dd.active === null) return;
-      e.preventDefault();
-      var touch = e.touches[0];
-      var els = container.querySelectorAll('.ativ-item');
-      var found = null;
-      els.forEach(function(item, j) {
-        var rect = item.getBoundingClientRect();
-        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) found = j;
+    } else {
+      // ── Desktop: HTML5 drag ─────────────────────────────────
+      el.setAttribute('draggable', 'true');
+      el.addEventListener('dragstart', function(e) {
+        dragFrom = i;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(function(){ el.style.opacity='0.45'; }, 0);
       });
-      if (found !== null) { _dd.overIdx = found; _highlightOver(container, found); }
+      el.addEventListener('dragend', function() { cleanup(); });
+      el.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        container.querySelectorAll('.ativ-item').forEach(function(x){ x.style.outline=''; });
+        if (i !== dragFrom) el.style.outline = '2px solid #FFC400';
+      });
+      el.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (dragFrom !== null && dragFrom !== i) doReorder(dragFrom, i);
+      });
+    }
+  });
+
+  if (isMobile) {
+    // Tracking global do toque (fora do handle para não perder o dedo)
+    document.addEventListener('touchmove', function(e) {
+      if (dragFrom === null) return;
+      e.preventDefault();
+      var y = e.touches[0].clientY;
+      container.querySelectorAll('.ativ-item').forEach(function(item, j) {
+        var rect = item.getBoundingClientRect();
+        var over = (y >= rect.top && y <= rect.bottom && j !== dragFrom);
+        item.style.outline = over ? '2px solid #FFC400' : '';
+      });
     }, {passive: false});
 
-    handle.addEventListener('touchend', function() {
-      var elems = container.querySelectorAll('.ativ-item');
-      elems.forEach(function(el){ el.style.opacity=''; el.style.outline=''; });
-      _finalizeDrop();
+    document.addEventListener('touchend', function(e) {
+      if (dragFrom === null) return;
+      var y = e.changedTouches[0].clientY;
+      var toIdx = null;
+      container.querySelectorAll('.ativ-item').forEach(function(item, j) {
+        var rect = item.getBoundingClientRect();
+        if (y >= rect.top && y <= rect.bottom) toIdx = j;
+      });
+      var from = dragFrom;
+      if (toIdx !== null && toIdx !== from) doReorder(from, toIdx);
+      else { dragFrom = null; cleanup(); }
     }, {passive: true});
-  });
+  }
 }
 
-function _highlightOver(container, idx) {
-  container.querySelectorAll('.ativ-item').forEach(function(el, j) {
-    el.style.outline = (j === idx && j !== _dd.active) ? '2px solid #FFC400' : '';
-  });
-}
-
-function _finalizeDrop() {
-  var from = _dd.active, to = _dd.overIdx;
-  _dd.active = null; _dd.overIdx = null;
-  if (from === null || to === null || from === to) return;
+function moverAtiv(i, dir) {
   syncReuniaoState();
   var arr = state._reuniaoAtiva.atividades;
-  var item = arr.splice(from, 1)[0];
-  arr.splice(to, 0, item);
+  var j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
   renderReuniaoAtiva();
 }
-
 
 var _agendaMap={};
 // Patch: substitui loadAgenda e renderAgenda com horários calculados e linhas alternadas
@@ -1652,17 +1784,6 @@ function salvarMembroInline(key){
     mostrarToast('✓ Requisitos salvos!');
     renderEspecialidades();
   },function(e){alert('Erro ao salvar: '+(e.message||e));});
-}
-
-function mostrarToast(msg){
-  var t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#4ade80;color:#06310f;padding:10px 22px;border-radius:20px;font-weight:800;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none';
-  t.textContent=msg;
-  document.body.appendChild(t);
-  setTimeout(function(){
-    t.style.transition='opacity .4s';t.style.opacity='0';
-    setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);
-  },2000);
 }
 
 // ══ ESPECIALIDADES (aba nova) ══════════════════════════════════
