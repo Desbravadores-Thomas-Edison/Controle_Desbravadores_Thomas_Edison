@@ -61,6 +61,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -320,6 +321,15 @@ input,select,textarea{font-size:16px!important;}
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -1234,6 +1244,7 @@ function syncReuniaoState(){
   (r.atividades||[]).forEach(function(a,i){
     if($('_anome_'+i))a.nome=$('_anome_'+i).value;
     if($('_amin_'+i))a.min=parseInt($('_amin_'+i).value)||0;
+    if($('_adesc_'+i))a.descricao=$('_adesc_'+i).value;
   });
 }
 
@@ -1295,6 +1306,10 @@ function renderPlanejar(){
   }
   body.innerHTML=html;
   setTimeout(initDragDrop,50);
+  // Auto-resize nas textareas de descrição
+  setTimeout(function(){
+    document.querySelectorAll('textarea[id^="_adesc_"]').forEach(function(t){autoResize(t);});
+  },60);
 }
 
 // Modal: Nova reunião do zero ou a partir de modelo
@@ -1419,7 +1434,10 @@ function renderReuniaoAtiva(){
       +'<button onclick="moverAtiv('+i+',-1)" style="background:none;border:none;color:#555;cursor:pointer;font-size:13px;padding:1px;line-height:1">▲</button>'
       +'<button onclick="moverAtiv('+i+',1)" style="background:none;border:none;color:#555;cursor:pointer;font-size:13px;padding:1px;line-height:1">▼</button>'
       +'</div>'
-      +'<div style="flex:1"><input id="_anome_'+i+'" value="'+esc(a.nome)+'" placeholder="Nova atividade" oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:16px;font-weight:600;padding:2px 0;margin-bottom:4px"></div>'
+      +'<div style="flex:1">'
+      +'<input id="_anome_'+i+'" value="'+esc(a.nome)+'" placeholder="Nova atividade" oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:16px;font-weight:600;padding:2px 0;margin-bottom:4px">'
+      +'<textarea id="_adesc_'+i+'" placeholder="Descrição (opcional)" oninput="state._reuniaoAtiva.atividades['+i+'].descricao=this.value;autoResize(this)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed #2a2a2a;color:#999;font-size:13px;padding:2px 0;margin-top:2px;resize:none;overflow:hidden;min-height:0;box-sizing:border-box;font-family:inherit">'+esc(a.descricao||'')+'</textarea>'
+      +'</div>'
       +'<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
       +'<input id="_amin_'+i+'" type="number" value="'+(a.min||0)+'" min="0" oninput="state._reuniaoAtiva.atividades['+i+'].min=parseInt(this.value)||0;updateTimebar()" style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
       +'<span style="color:#888;font-size:12px">min</span>'
@@ -1541,33 +1559,59 @@ function renderAgenda(){
 
 // ── ABA PROVAS ────────────────────────────────────────────────
 function loadProvas(){
+  // Carregar categorias e provas em paralelo
+  callAPI('getCategoriasProvas',{},function(r){state._categoriasProvas=r.categorias||[];},function(){state._categoriasProvas=[];});
   callAPI('getProvas',{},function(r){state._provas=r.provas;renderProvas();},
-    function(e){document.getElementById('reuniaoBody').innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>';});
+    function(e){var b=document.getElementById('reuniaoBody');if(b)b.innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>';});
 }
 function renderProvas(){
   var ps=state._provas||[];
+  var cats=state._categoriasProvas||[];
   var body=document.getElementById('reuniaoBody');if(!body)return;
-  var html='<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px;margin-bottom:14px">'
-    +'<div style="font-size:12px;color:#FFC400;font-weight:700;margin-bottom:8px">NOVA PROVA</div>'
-    +'<input id="_pnome_" placeholder="Nome da prova" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
-    +'<input id="_pdesc_" placeholder="Descrição (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
-    +'<input id="_pmat_" placeholder="Materiais necessários (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;margin-bottom:6px;box-sizing:border-box;font-size:14px">'
-    +'<div style="display:flex;gap:8px">'
-    +'<input id="_pcat_" placeholder="Categoria: (ex: Nós e Amarras)" style="flex:1;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:8px;font-size:16px">'
-    +'<input id="_pmin_" type="number" value="15" min="1" style="width:70px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:8px;padding:8px;text-align:center;font-size:14px;font-weight:800">'
-    +'<button onclick="adicionarProva()" style="background:#FFC400;color:#000;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">➕</button>'
-    +'</div></div>';
-  if(!ps.length){html+='<div style="color:#666;text-align:center;padding:20px">Banco de provas vazio.</div>';}
-  else{
-    ps.forEach(function(p){
-      html+='<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'
-        +'<div style="flex:1"><div style="font-weight:700">'+esc(p.nome)+'</div>'
-        +'<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?'<span style="color:#FFC400">'+esc(p.categoria)+'</span> · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.substring(0,50)):'')+' </div></div>'
-        +'<button onclick="deletarProva('+p.id+')" style="background:none;border:none;color:#e55;font-size:20px;cursor:pointer;padding:0">🗑️</button>'
-        +'</div>';
+
+  // Botão nova prova
+  var html='<button onclick="abrirModalProva(null)" style="width:100%;background:#141414;border:1px dashed #FFC400;color:#FFC400;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px">+ Nova Prova</button>';
+
+  if(!ps.length){
+    html+='<div style="color:#555;text-align:center;padding:30px">Nenhuma prova cadastrada ainda.</div>';
+  } else {
+    ps.forEach(function(p,i){
+      var cardId='_pcard_'+i;
+      html+='<div style="background:#141414;border:1px solid #222;border-radius:12px;margin-bottom:8px;overflow:hidden">'
+        // Linha compacta (sempre visível)
+        +'<div onclick="toggleProvaCard(\'+cardId+\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
+        +'<span style="font-size:16px">▶</span>'
+        +'<div style="flex:1">'
+        +'<div style="font-weight:700;font-size:14px;color:#fff">'+esc(p.nome)+'</div>'
+        +'<div style="font-size:12px;color:#666;margin-top:2px">'
+        +(p.categoria?'<span style="color:#FFC400;margin-right:8px">'+esc(p.categoria)+'</span>':'')
+        +(p.tempoMin?'⏱ '+p.tempoMin+'min':'')
+        +(p.qtdParticipantes?' · 👥 '+esc(p.qtdParticipantes):'')
+        +'</div></div>'
+        +(CTX&&CTX.role==='admin'?'<button onclick="excluirProva('+p.id+')" style="background:none;border:none;color:#555;cursor:pointer;font-size:18px;padding:4px 8px" title="Excluir">🗑</button>':'')
+        +'</div>'
+        // Detalhes expansíveis
+        +'<div id="'+cardId+'" style="display:none;padding:0 14px 14px;border-top:1px solid #222">'
+        +(p.pontuacao?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">🏆 Pontuação</span><div style="color:#FFC400;font-weight:700;margin-top:2px">'+esc(p.pontuacao)+'</div></div>':'')
+        +(p.descricao?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">📋 Descrição/Regra</span><div style="color:#ccc;font-size:13px;margin-top:4px;white-space:pre-wrap">'+esc(p.descricao)+'</div></div>':'')
+        +(p.materiais?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">🎒 Materiais</span><div style="color:#ccc;font-size:13px;margin-top:2px">'+esc(p.materiais)+'</div></div>':'')
+        +'</div></div>';
     });
   }
   body.innerHTML=html;
+}
+
+function toggleProvaCard(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var arrow=el.previousElementSibling&&el.previousElementSibling.querySelector('span');
+  if(el.style.display==='none'){
+    el.style.display='block';
+    if(arrow)arrow.textContent='▼';
+  } else {
+    el.style.display='none';
+    if(arrow)arrow.textContent='▶';
+  }
 }
 function adicionarProva(){
   var nome=($('_pnome_')||{}).value||'';
@@ -1628,6 +1672,35 @@ function duplicarReuniao(id){
   renderReuniaoAtiva();
 }
 
+// ── Descrição auto-crescente nas atividades ───────────────────
+function autoResize(el){
+  el.style.height='auto';
+  el.style.height=(el.scrollHeight)+'px';
+}
+
+
+function calcAgendaHtml(inicio, atividades, soEscrita){
+  function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
+  function toTime(m){var h=Math.floor(m/60)%24,mm=m%60;return(h<10?'0':'')+h+'h'+(mm<10?'0':'')+mm;}
+  var cursor=toMin(inicio);
+  var html='';
+  (atividades||[]).forEach(function(a,i){
+    var hora=toTime(cursor);
+    var par=i%2===0;
+    var desc=a.descricao?String(a.descricao).trim():'';
+    // Converter quebras de linha em <br> para exibição
+    var descHtml=desc?desc.replace(/\n/g,'<br>'):'';
+    html+='<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 14px;background:'+(par?'transparent':'rgba(255,196,0,.04)')+';">'
+      +'<span style="color:#FFC400;font-size:12px;font-weight:800;flex-shrink:0;min-width:36px;padding-top:1px">'+hora+'</span>'
+      +'<div style="flex:1">'
+      +'<span style="font-size:14px;color:#fff">'+esc(a.nome)+'</span>'
+      +'<span style="font-size:12px;color:#666;margin-left:6px">'+a.min+'min</span>'
+      +(descHtml?'<div style="font-size:12px;color:#aaa;margin-top:3px;line-height:1.5">'+descHtml+'</div>':'')
+      +'</div></div>';
+    cursor+=parseInt(a.min)||0;
+  });
+  return html;
+}
 var _agendaMap={};
 // Patch: substitui loadAgenda e renderAgenda com horários calculados e linhas alternadas
 function loadAgenda(){
@@ -1662,7 +1735,7 @@ function renderAgenda(){
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">'
         +'<div style="font-size:14px;font-weight:800;color:'+(ehHoje?'#4ade80':'#FFC400')+'">'+r.publicadaFmt+'</div>'
         +(ehHoje?'<div style="font-size:11px;color:#4ade80;font-weight:700">● HOJE</div>':'')
-        +'<a href="javascript:void(0)" onclick="compartilharAgendaObj(this)" data-idx="'+idx+'" style="background:#25d366;color:#06310f;text-decoration:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;display:inline-block">WhatsApp</a>'
+        +'<a href="javascript:void(0)" onclick="compartilharAgendaObj(this)" data-idx="'+idx+'" style="background:#25d366;color:#06310f;text-decoration:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;display:inline-block">WhatsApp</a>'+'<button onclick="compartilharNativo(this)" data-idx="'+idx+'" style="background:#25D366;border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px" title="Compartilhar">📤</button>'
         +'</div></div></div>'
         // Atividades com horários calculados e linhas alternadas
         +'<div style="padding:8px 0">'
@@ -1738,6 +1811,22 @@ function compartilharAgendaObj(el){
   var r=_agIdxArr[idx];
   if(r) compartilharAgenda(r);
   else alert('Erro ao carregar dados da reunião.');
+}
+
+function compartilharNativo(btn){
+  var idx=parseInt(btn.getAttribute('data-idx')||'0');
+  var r=_agIdxArr[idx];
+  if(!r)return;
+  var texto=_buildMsgWA(r);
+  if(navigator.share){
+    navigator.share({title:'Reunião Thomas Edison',text:texto})
+      .catch(function(){});
+  } else {
+    // Fallback: copiar para clipboard
+    navigator.clipboard&&navigator.clipboard.writeText(texto)
+      .then(function(){mostrarToast('✓ Copiado para a área de transferência!');})
+      .catch(function(){alert(texto);});
+  }
 }
 
 // ══ CLASSES v4 — todos veem, só instrutor edita ════════════════
@@ -2100,8 +2189,17 @@ function salvarEspMembro(key){
 
 // ── Modal: adicionar especialidade ────────────────────────────
 function abrirModalAddEsp(){
-  var classeOpts=['Amigo','Companheiro','Pesquisador','Pioneiro','Excursionista','Guia','Líder','Líder Master','Líder Master Avançado']
-    .map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('');
+  // Primeiro carrega o catálogo, depois abre o modal
+  callAPI('getCatalogo',{},function(r){
+    var catalogo=r.catalogo||{};
+    var cats=Object.keys(catalogo).sort();
+    _abrirModalEspComCatalogo(catalogo,cats);
+  },function(){
+    _abrirModalEspComCatalogo({},[]); // fallback sem catálogo
+  });
+}
+
+function _abrirModalEspComCatalogo(catalogo,cats){
   var unitOpts=UNITS.map(function(u){return'<option value="'+u+'">'+u+'</option>';}).join('');
 
   var ov=document.createElement('div');
@@ -2109,7 +2207,23 @@ function abrirModalAddEsp(){
   ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
   ov.innerHTML='<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:400px;margin:0 auto">'
     +'<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:16px">⭐ Nova Especialidade</div>'
-    +'<input id="_espCat_" placeholder="Categoria (opcional — ex: Culinária, Saúde)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
+
+    // Categoria (obrigatória, do catálogo)
+    +(cats.length?'<div style="font-size:12px;color:#aaa;margin-bottom:4px">Categoria <span style="color:#e55">*</span></div>'
+      +'<select id="_espCatSel_" onchange="filtrarEspecialidadesCatalogo()" style="width:100%;background:#0a0a0a;border:1px solid #FFC400;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
+      +'<option value="">Selecione a categoria...</option>'
+      +cats.map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('')
+      +'</select>'
+      :'<input id="_espCatSel_" placeholder="Categoria" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">')
+
+    // Nome da especialidade (lista suspensa se catálogo disponível)
+    +'<div style="font-size:12px;color:#aaa;margin-bottom:4px">Nome da especialidade <span style="color:#e55">*</span></div>'
+    +(cats.length
+      ?'<select id="_espNome_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
+        +'<option value="">Selecione a categoria primeiro...</option></select>'
+      :'<input id="_espNome_" placeholder="Nome da especialidade" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">')
+
+    // Escopo
     +'<div style="font-size:12px;color:#aaa;margin-bottom:6px">Escopo</div>'
     +'<div style="display:flex;gap:6px;margin-bottom:14px">'
     +'<button id="_esc1_" onclick="selEscopoEsp(\'classe\')" class="pill on" style="white-space:nowrap;font-size:13px">Por Classe</button>'
@@ -2118,10 +2232,9 @@ function abrirModalAddEsp(){
     +'</div>'
     +'<div id="_escopoDiv_" style="margin-bottom:12px">'
     +'<div style="font-size:12px;color:#aaa;margin-bottom:4px">Classe</div>'
-    +'<select id="_espEscVal_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">'+classeOpts+'</select>'
-    +'</div>'
-    +'<input id="_espNome_" placeholder="Nome da especialidade" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
-    +'<input id="_espDesc_" placeholder="Descrição (opcional)" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;margin-bottom:12px;box-sizing:border-box">'
+    +'<select id="_espEscVal_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">'
+    +['Amigo','Companheiro','Pesquisador','Pioneiro','Excursionista','Guia','Líder','Líder Master','Líder Master Avançado'].map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('')
+    +'</select></div>'
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">'
     +'<input type="checkbox" id="_espOpc_" style="width:18px;height:18px;cursor:pointer">'
     +'<label for="_espOpc_" style="font-size:14px;color:#aaa;cursor:pointer">Opcional (não entra na % de conclusão)</label>'
@@ -2131,7 +2244,18 @@ function abrirModalAddEsp(){
     +'<button onclick="confirmarAddEsp()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer">Adicionar ✓</button>'
     +'</div></div>';
   document.body.appendChild(ov);
-  window._espCOpts=classeOpts; window._espUOpts=unitOpts;
+  window._espCatalogo=catalogo;
+  window._espUOpts=unitOpts;
+}
+
+function filtrarEspecialidadesCatalogo(){
+  var sel=document.getElementById('_espCatSel_');
+  var nomeSel=document.getElementById('_espNome_');
+  if(!sel||!nomeSel)return;
+  var cat=sel.value;
+  var esps=(window._espCatalogo&&window._espCatalogo[cat])||[];
+  nomeSel.innerHTML='<option value="">Selecione a especialidade...</option>'
+    +esps.map(function(e){return'<option value="'+e+'">'+e+'</option>';}).join('');
 }
 
 function selEscopoEsp(tipo){
@@ -2145,15 +2269,17 @@ function selEscopoEsp(tipo){
 }
 
 function confirmarAddEsp(){
-  var nome=(($('_espNome_')||{}).value||'').trim();
-  if(!nome){alert('Informe o nome da especialidade.');return;}
+  var nomeEl=($('_espNome_')||{});
+  var nome=(nomeEl.value||nomeEl.value||'').trim();
+  if(!nome){alert('Selecione ou informe a especialidade.');return;}
   var escopo=(($('_espEscVal_')||{}).value||'').trim();
   if(!escopo){alert('Selecione o escopo.');return;}
-  var desc=(($('_espDesc_')||{}).value||'').trim();
-  var cat=(($('_espCat_')||{}).value||'').trim();
+  var catEl=($('_espCatSel_')||{});
+  var cat=(catEl.tagName==='SELECT'?catEl.value:catEl.value||'').trim();
+  if(!cat){alert('Selecione a categoria.');return;}
   var opcional=!!(($('_espOpc_')||{}).checked);
   var ov=document.getElementById('_addEspOv_');if(ov)ov.remove();
-  callAPI('addEspecialidade',{dados:{nome:nome,escopo:escopo,categoria:cat,descricao:desc,opcional:opcional}},
+  callAPI('addEspecialidade',{dados:{nome:nome,escopo:escopo,categoria:cat,descricao:'',opcional:opcional}},
     function(){mostrarToast('✓ Especialidade adicionada!');loadEspecialidadesTab();},
     function(e){alert('Erro: '+(e.message||e));}
   );
