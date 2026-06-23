@@ -62,6 +62,7 @@
 
 
 
+
 :root{--am:#FFC400;--pr:#0a0a0a;--card:#141414;--ln:#222;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;background:var(--pr);color:#fff;font-family:'Trebuchet MS','Segoe UI',sans-serif;}
@@ -321,6 +322,15 @@ input,select,textarea{font-size:16px!important;}
 .pills-row::-webkit-scrollbar{display:none;}
 .pills-row{-ms-overflow-style:none;scrollbar-width:none;}
 input,select,textarea{font-size:16px!important;}
+@media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
+@media(min-width:1200px){.wrap{max-width:1100px;}}
+
+
+.pills-row::-webkit-scrollbar{display:none;}
+.pills-row{-ms-overflow-style:none;scrollbar-width:none;}
+input,select,textarea{font-size:16px!important;}
+.sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
+.sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:26px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 
@@ -1296,19 +1306,18 @@ function renderPlanejar(){
         +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' · '+totalMin+'min</div>'
         +'<div style="margin-top:4px">'+pubTag+'</div>'
         +'</div>'
-        +'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
-        +'<button onclick="abrirReuniao('+r.id+')" style="background:#1c1c1c;color:#FFC400;border:1px solid #FFC400;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️ Editar</button>'
-        +'<button onclick="duplicarReuniao('+r.id+')" style="background:#1c1c1c;color:#aaa;border:1px solid #555;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">⧉ Duplicar</button>'
-        +'<button onclick="publicarModal('+r.id+')" style="background:#0d1f12;color:#4ade80;border:1px solid #4ade80;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">📢 Publicar</button>'
-        +'<button onclick="deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;font-size:18px;cursor:pointer;padding:2px">×</button>'
-        +'</div></div></div>';
+        /* ▲▼ removidos — descomente para restaurar */ +'';
     });
   }
   body.innerHTML=html;
   setTimeout(initDragDrop,50);
   // Auto-resize nas textareas de descrição
   setTimeout(function(){
-    document.querySelectorAll('textarea[id^="_adesc_"]').forEach(function(t){autoResize(t);});
+    document.querySelectorAll('textarea[id^="_adesc_"]').forEach(function(t){
+      // Restaurar altura da textarea (preserva conteúdo multilinha)
+      t.style.height='auto';
+      t.style.height=(t.scrollHeight)+'px';
+    });
   },60);
 }
 
@@ -1566,39 +1575,86 @@ function loadProvas(){
 }
 function renderProvas(){
   var ps=state._provas||[];
-  var cats=state._categoriasProvas||[];
   var body=document.getElementById('reuniaoBody');if(!body)return;
+  var isAdmin=CTX&&CTX.role==='admin';
 
-  // Botão nova prova
   var html='<button onclick="abrirModalProva(null)" style="width:100%;background:#141414;border:1px dashed #FFC400;color:#FFC400;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px">+ Nova Prova</button>';
 
   if(!ps.length){
     html+='<div style="color:#555;text-align:center;padding:30px">Nenhuma prova cadastrada ainda.</div>';
   } else {
-    ps.forEach(function(p,i){
-      var cardId='_pcard_'+i;
-      html+='<div style="background:#141414;border:1px solid #222;border-radius:12px;margin-bottom:8px;overflow:hidden">'
-        // Linha compacta (sempre visível)
-        +'<div onclick="toggleProvaCard(\'+cardId+\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">'
-        +'<span style="font-size:16px">▶</span>'
-        +'<div style="flex:1">'
-        +'<div style="font-weight:700;font-size:14px;color:#fff">'+esc(p.nome)+'</div>'
-        +'<div style="font-size:12px;color:#666;margin-top:2px">'
-        +(p.categoria?'<span style="color:#FFC400;margin-right:8px">'+esc(p.categoria)+'</span>':'')
-        +(p.tempoMin?'⏱ '+p.tempoMin+'min':'')
-        +(p.qtdParticipantes?' · 👥 '+esc(p.qtdParticipantes):'')
-        +'</div></div>'
-        +(CTX&&CTX.role==='admin'?'<button onclick="excluirProva('+p.id+')" style="background:none;border:none;color:#555;cursor:pointer;font-size:18px;padding:4px 8px" title="Excluir">🗑</button>':'')
-        +'</div>'
-        // Detalhes expansíveis
-        +'<div id="'+cardId+'" style="display:none;padding:0 14px 14px;border-top:1px solid #222">'
-        +(p.pontuacao?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">🏆 Pontuação</span><div style="color:#FFC400;font-weight:700;margin-top:2px">'+esc(p.pontuacao)+'</div></div>':'')
-        +(p.descricao?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">📋 Descrição/Regra</span><div style="color:#ccc;font-size:13px;margin-top:4px;white-space:pre-wrap">'+esc(p.descricao)+'</div></div>':'')
-        +(p.materiais?'<div style="margin-top:10px"><span style="font-size:11px;color:#aaa">🎒 Materiais</span><div style="color:#ccc;font-size:13px;margin-top:2px">'+esc(p.materiais)+'</div></div>':'')
-        +'</div></div>';
-    });
+    for(var i=0;i<ps.length;i++){
+      var p=ps[i];
+      var cid='_pcard_'+i;
+      html+='<div style="background:#141414;border:1px solid #222;border-radius:12px;margin-bottom:8px;overflow:hidden">';
+      html+='<div data-cid="'+cid+'" onclick="toggleProvaCardEl(this)" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer">';
+      html+='<span style="color:#fff;font-size:20px;flex-shrink:0;line-height:1;width:16px">›</span>';
+      html+='<div style="flex:1">';
+      html+='<div style="font-weight:700;font-size:14px;color:#fff">'+esc(p.nome)+'</div>';
+      html+='<div style="font-size:12px;color:#666;margin-top:2px">';
+      if(p.categoria)html+='<span style="color:#FFC400;margin-right:8px">'+esc(p.categoria)+'</span>';
+      if(p.tempoMin)html+='⏱ '+p.tempoMin+'min';
+      if(p.qtdParticipantes)html+=' · 👥 '+esc(p.qtdParticipantes);
+      html+='</div></div>';
+      if(isAdmin)html+='<button onclick="event.stopPropagation();editarProva('+p.id+')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:13px;font-weight:700;padding:4px 8px">✏️</button>';
+      if(isAdmin)html+='<button onclick="event.stopPropagation();excluirProva('+p.id+')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:18px;padding:4px 6px;font-weight:300">✕</button>';
+      html+='</div>';
+      html+='<div id="'+cid+'" style="display:none;padding:0 14px 14px;border-top:1px solid #1a1a1a">';
+      if(p.pontuacao)html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">🏆 Pontuação</div><div style="color:#FFC400;font-weight:700;margin-top:2px;font-size:14px;white-space:pre-wrap">'+esc(p.pontuacao)+'</div></div>';
+      if(p.descricao)html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">📋 Descrição/Regra</div><div style="color:#ccc;font-size:13px;margin-top:4px;white-space:pre-wrap">'+esc(p.descricao)+'</div></div>';
+      if(p.materiais)html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">🎒 Materiais</div><div style="color:#ccc;font-size:13px;margin-top:2px">'+esc(p.materiais)+'</div></div>';
+      if(isAdmin)html+='<button onclick="duplicarProva('+p.id+')" style="margin-top:12px;background:#1a1a1a;border:1px solid #333;color:#aaa;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;width:100%">📋 Duplicar prova</button>';
+      html+='</div></div>';
+    }
   }
   body.innerHTML=html;
+}
+
+function toggleProvaCardEl(header){
+  var cid=header.getAttribute('data-cid');
+  var el=document.getElementById(cid);
+  var arr=header.querySelector('span');
+  if(!el)return;
+  var open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  if(arr)arr.textContent=open?'›':'⌄';
+}
+
+function editarProva(id){
+  var p=(state._provas||[]).find(function(x){return x.id===id;});
+  if(p)abrirModalProva(p);
+}
+
+function duplicarProva(id){
+  var p=(state._provas||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  var c=JSON.parse(JSON.stringify(p));
+  c.id=null; c.nome=p.nome+' (cópia)';
+  abrirModalProva(c);
+}
+
+function toggleProvaCard(id){
+  var el=document.getElementById(id);
+  var arr=document.getElementById(id+'_arr');
+  if(!el)return;
+  var open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  if(arr)arr.textContent=open?'›':'⌄';
+}
+
+function editarProva(id){
+  var p=(state._provas||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  abrirModalProva(p);
+}
+
+function duplicarProva(id){
+  var p=(state._provas||[]).find(function(x){return x.id===id;});
+  if(!p)return;
+  var copia=JSON.parse(JSON.stringify(p));
+  copia.id=null;
+  copia.nome=p.nome+' (cópia)';
+  abrirModalProva(copia);
 }
 
 function toggleProvaCard(id){
@@ -1678,6 +1734,66 @@ function autoResize(el){
   el.style.height=(el.scrollHeight)+'px';
 }
 
+function abrirModalProva(prova){
+  var cats=state._categoriasProvas||[];
+  var ov=document.createElement('div');
+  ov.id='_provaOv_';
+  ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
+
+  function ta(id,val,ph){
+    return '<textarea id="'+id+'" placeholder="'+ph+'" oninput="autoResize(this)" '
+      +'style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;'
+      +'padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box;resize:none;overflow:hidden;'
+      +'min-height:56px;font-family:inherit">'+esc(val||'')+'</textarea>';
+  }
+  function inp(id,type,val,ph){
+    return '<input id="'+id+'" type="'+type+'" value="'+esc(String(val||''||''))+'" placeholder="'+ph+'" '
+      +'style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;'
+      +'padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">';
+  }
+  function lbl(txt){return '<div style="font-size:12px;color:#aaa;margin-bottom:3px">'+txt+'</div>';}
+
+  var catSel='<select id="_pCat_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;'
+    +'border-radius:8px;padding:9px;font-size:14px;margin-bottom:10px;box-sizing:border-box">'
+    +'<option value="">Selecione a categoria...</option>'
+    +cats.map(function(c){return'<option value="'+c+'"'+(prova&&prova.categoria===c?' selected':'')+'>'+c+'</option>';}).join('')
+    +'</select>';
+
+  var html='<div style="background:#141414;border:1px solid #FFC400;border-radius:14px;padding:20px;max-width:420px;margin:0 auto">';
+  html+='<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:16px">🏆 '+(prova&&prova.id?'Editar':'Nova')+' Prova</div>';
+  html+=lbl('Categoria')+catSel;
+  html+=lbl('Nome da prova')+inp('_pNome_','text',prova?prova.nome:'','Nome da prova');
+  html+=lbl('Qtd. Participantes')+inp('_pQtd_','text',prova?prova.qtdParticipantes:'','Ex: 2 a 4 por equipe');
+  html+=lbl('⏱ Tempo (min)')+inp('_pTempo_','number',prova?prova.tempoMin:15,'15');
+  html+=lbl('Pontuação')+ta('_pPont_',prova?prova.pontuacao:'','Ex: 1º lugar: 50pts, 2º: 30pts');
+  html+=lbl('Descrição/Regra')+ta('_pDesc_',prova?prova.descricao:'','Descreva a atividade e as regras...');
+  html+='<div style="display:flex;gap:8px;margin-top:4px">';
+  html+='<button onclick="document.getElementById(\'_provaOv_\').remove()" style="flex:1;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Cancelar</button>';
+  html+='<button onclick="salvarProva('+(prova&&prova.id?prova.id:'null')+')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer">Salvar ✓</button>';
+  html+='</div></div>';
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  setTimeout(function(){ov.querySelectorAll('textarea').forEach(function(t){autoResize(t);});},50);
+}
+
+function salvarProva(id){
+  var prova={
+    id:id,
+    categoria:($('_pCat_')||{value:''}).value,
+    nome:(($('_pNome_')||{value:''}).value||'').trim(),
+    qtdParticipantes:(($('_pQtd_')||{value:''}).value||'').trim(),
+    tempoMin:parseInt(($('_pTempo_')||{value:15}).value)||15,
+    pontuacao:(($('_pPont_')||{value:''}).value||'').trim(),
+    descricao:(($('_pDesc_')||{value:''}).value||'').trim(),
+    materiais:''
+  };
+  if(!prova.nome){alert('Informe o nome da prova.');return;}
+  var ov=document.getElementById('_provaOv_');if(ov)ov.remove();
+  callAPI('saveProva',{prova:prova},function(){
+    mostrarToast('✓ Prova salva!');loadProvas();
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
 
 function calcAgendaHtml(inicio, atividades, soEscrita){
   function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
@@ -1735,7 +1851,7 @@ function renderAgenda(){
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">'
         +'<div style="font-size:14px;font-weight:800;color:'+(ehHoje?'#4ade80':'#FFC400')+'">'+r.publicadaFmt+'</div>'
         +(ehHoje?'<div style="font-size:11px;color:#4ade80;font-weight:700">● HOJE</div>':'')
-        +'<a href="javascript:void(0)" onclick="compartilharAgendaObj(this)" data-idx="'+idx+'" style="background:#25d366;color:#06310f;text-decoration:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;display:inline-block">WhatsApp</a>'+'<button onclick="compartilharNativo(this)" data-idx="'+idx+'" style="background:#25D366;border:none;color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px" title="Compartilhar">📤</button>'
+        +'<a href="javascript:void(0)" onclick="compartilharAgendaObj(this)" data-idx="'+idx+'" style="background:#25d366;color:#06310f;text-decoration:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;display:inline-block">WhatsApp</a>'+'<button onclick="compartilharNativo(this)" data-idx="'+idx+'" style="background:none;border:1px solid #444;color:#aaa;border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;margin-left:6px;display:inline-flex;align-items:center;justify-content:center" title="Compartilhar"><svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\'/><polyline points=\'16 6 12 2 8 6\'/><line x1=\'12\' y1=\'2\' x2=\'12\' y2=\'15\'/></svg></button>'
         +'</div></div></div>'
         // Atividades com horários calculados e linhas alternadas
         +'<div style="padding:8px 0">'
@@ -1818,14 +1934,18 @@ function compartilharNativo(btn){
   var r=_agIdxArr[idx];
   if(!r)return;
   var texto=_buildMsgWA(r);
+  // Usar SOMENTE Web Share API — não abre WhatsApp antes
   if(navigator.share){
-    navigator.share({title:'Reunião Thomas Edison',text:texto})
-      .catch(function(){});
+    navigator.share({title:'Reunião — '+r.nome,text:texto}).catch(function(){});
   } else {
     // Fallback: copiar para clipboard
-    navigator.clipboard&&navigator.clipboard.writeText(texto)
-      .then(function(){mostrarToast('✓ Copiado para a área de transferência!');})
-      .catch(function(){alert(texto);});
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(texto)
+        .then(function(){mostrarToast('✓ Texto copiado!');})
+        .catch(function(){});
+    } else {
+      mostrarToast('Use o botão WhatsApp para compartilhar.');
+    }
   }
 }
 
