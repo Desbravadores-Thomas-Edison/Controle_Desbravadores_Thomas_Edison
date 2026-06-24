@@ -263,7 +263,7 @@ function render(){
     +statsHtml()+aviso
     +'<div style="display:flex;flex-direction:row;gap:8px;align-items:stretch;margin-top:4px">'
     +'<button class="enviar" id="env" onclick="enviar()" style="flex:1;min-width:0">Enviar ✓</button>'
-    +'<button onclick="_compartilharUnidade()" style="flex-shrink:0;background:#1c1c1c;border:1px solid #444;color:#ccc;border-radius:12px;padding:0 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:52px">'+_SHARE_BTN_SVG+'</button>'
+    +'<button onclick="_compartilharUnidade()" style="flex-shrink:0;background:#1c1c1c;border:1px solid #444;color:#ccc;border-radius:12px;padding:0 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:52px"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\"/><polyline points=\"16 6 12 2 8 6\"/><line x1=\"12\" y1=\"2\" x2=\"12\" y2=\"15\"/></svg></button>'
     +'</div>'
     +'<div style="height:16px"></div><div id="_rcard_"></div><div id="res"></div>';
   $('app').innerHTML=html;
@@ -606,9 +606,7 @@ function _carregarUnidade(unit) {
       +'</div>'
       +statsHtml()+aviso
       +'<div style="height:16px"></div>'
-      +'<div style="display:flex;gap:8px;margin-bottom:8px">'
-      +'<button onclick="_compartilharUnidade()" style="background:#1c1c1c;border:1px solid #444;color:#ccc;border-radius:10px;padding:12px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><path d=\'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8\'/><polyline points=\'16 6 12 2 8 6\'/><line x1=\'12\' y1=\'2\' x2=\'12\' y2=\'15\'/></svg></button>'
-      +'</div>'
+
       +'<button class="enviar" id="env" onclick="enviar()">'+(state.jaSalvo?'✓ Atualizar Presença':'✓ Enviar Presença')+'</button>'
       +'<div id="_rcard_"></div><div id="res"></div>';
 
@@ -924,8 +922,8 @@ function renderPlanejar(){
         +'<div style="margin-top:4px">'+pubTag+'</div>'
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
-        +'<button onclick="event.stopPropagation();abrirReuniao('+r.id+')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:16px;padding:6px" title="Editar">✏️</button>'
-        +'<button onclick="event.stopPropagation();duplicarReuniao('+r.id+')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:6px" title="Duplicar">⧉</button>'
+        +'<button onclick="abrirReuniao('+r.id+')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:16px;padding:6px" title="Editar">✏️</button>'
+        +'<button onclick="duplicarReuniao('+r.id+')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:6px" title="Duplicar">⧉</button>'
         +'<button onclick="event.stopPropagation();deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:16px;padding:6px;font-weight:300" title="Excluir">✕</button>'
         +'</div>'   // fecha div botões
         +'</div>'   // fecha div flex-row
