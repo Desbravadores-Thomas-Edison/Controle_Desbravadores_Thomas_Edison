@@ -210,7 +210,7 @@ function renderLista(){
     }
 
     return '<div class="card"><div class="card-top">'
-      +'<div class="nome"><b>'+esc(p.nome)+'</b>'+tag+'</div>'
+      +'<div class="nome" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>'+esc(p.nome)+'</b>'+tag+'</div>'
       +'<div class="checks">'+checks+'</div></div>'
       +classeBadge+just+'</div>';
   }).join('');
@@ -253,8 +253,8 @@ function render(){
   var html=header()+banner
     +'<div id="lista"></div>'
     // #5: placeholder sem "(some amanhã)"
-    +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">'
-    +'<input id="vis" placeholder="Nome do visitante" style="width:100%;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;height:26px;box-sizing:border-box">'
+    +'<div style="display:flex;flex-direction:row;gap:6px;margin-bottom:12px;align-items:center">'
+    +'<input id="vis" placeholder="Nome visita" style="flex:1.2;min-width:0;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;height:40px;box-sizing:border-box">'
     +'<select id="vis_trouxe" style="width:100%;background:#141414;border:1px solid #2a2a2a;color:#888;border-radius:6px;padding:3px 8px;height:40px;font-size:16px!important;box-sizing:border-box;padding:8px">'
     +'<option value="">Quem trouxe?</option>'
     +(state.rows.filter(function(r){return r.tipo!=='Visita';}).map(function(r){return'<option>'+esc(r.nome)+'</option>';}).join(''))
@@ -592,15 +592,11 @@ function _carregarUnidade(unit) {
     var body = $('_unidBody_');
     if (!body) return;
 
-    var banner = LOGOS&&LOGOS[unit] ? '<div style="display:flex;align-items:center;gap:12px;background:#141414;border:1px solid #222;border-radius:14px;padding:10px 14px;margin-bottom:12px"><img src="'+LOGOS[unit]+'" style="height:54px;flex-shrink:0;border-radius:8px"><div><div style="font-size:11px;color:#FFC400;font-weight:700;letter-spacing:1px">UNIDADE</div><div style="font-size:18px;font-weight:800">'+esc(unit)+'</div></div></div>' : '';
+    var banner = LOGOS&&LOGOS[unit] ? '<div style="display:flex;align-items:center;gap:12px;background:#141414;border:1px solid #222;border-radius:14px;padding:10px 14px;margin-bottom:12px"><img src="'+LOGOS[unit]+'" style="height:54px;flex-shrink:0;border-radius:8px"><div><div style="font-size:11px;color:#FFC400;font-weight:700;letter-spacing:1px">UNIDADE</div><div style="font-size:18px;font-weight:800">'+esc(unit)+'</div></div><div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px"><input type="date" id="dt_unit" value="'+state.date+'" style="background:transparent;border:none;color:#FFC400;font-size:12px;padding:0;cursor:pointer;text-align:right;width:110px"></div></div>' : '';
     var aviso = state.jaSalvo ? '<div class="aviso">⚠️ Controle já enviado hoje — reenviar irá substituir.</div>' : '';
     var visOpts = state.rows.filter(function(x){return x.tipo!=='Visita';}).map(function(x){return'<option>'+esc(x.nome)+'</option>';}).join('');
 
     body.innerHTML = banner
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-      +'<span style="font-size:12px;color:#aaa">📅</span>'
-      +'<input type="date" id="dt_unit" value="'+state.date+'" style="background:transparent;border:none;border-bottom:1px solid #333;color:#FFC400;font-size:13px;padding:2px 4px;cursor:pointer">'
-      +'</div>'
       +'<div id="lista"></div>'
       +'<div class="addrow" style="flex-wrap:wrap;gap:6px">'
         +'<input id="vis" placeholder="Nome do visitante" style="flex:2;min-width:120px;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;height:26px">'
@@ -1078,7 +1074,7 @@ function renderReuniaoAtiva(){
       +'</div>'
       +'<div style="flex:1">'
       +'<input id="_anome_'+i+'" value="'+esc(a.nome)+'" placeholder="Nova atividade" oninput="state._reuniaoAtiva.atividades['+i+'].nome=this.value" style="width:100%;background:transparent;border:none;border-bottom:1px solid #333;color:#fff;font-size:16px;font-weight:600;padding:2px 0;margin-bottom:4px">'
-      +'<button id="_adesc_btn_'+i+'" onclick="abrirDescAtiv('+i+')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 4px;color:'+(at.descricao?'#FFC400':'#555')+'" title="Descrição">📝</button>'
+      +'<button id="_adesc_btn_'+i+'" onclick="abrirDescAtiv('+i+')" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 4px;color:'+(a.descricao?'#FFC400':'#555')+'" title="Descrição">📝</button>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'
       +'<input id="_amin_'+i+'" type="number" value="'+(a.min||0)+'" min="0" oninput="state._reuniaoAtiva.atividades['+i+'].min=parseInt(this.value)||0;updateTimebar()" style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
