@@ -314,9 +314,15 @@ function _doEnviar(){
     function(r){
       var wa='https://wa.me/?text='+encodeURIComponent(r.mensagem);
       var res=$('res');
-      res.innerHTML='<div class="result"><h4 style="margin-bottom:8px">✓ Controle salvo!</h4>'
-        +'<div style="background:#1a1a1a;border-radius:8px;padding:10px 12px;font-size:13px;color:#ccc;white-space:pre-wrap">'+esc(r.mensagem)+'</div>'
-        +'</div>';
+      var msgDiv=document.createElement('div');
+      msgDiv.style.cssText='background:#1a1a1a;border-radius:8px;padding:10px 12px;font-size:13px;color:#ccc;white-space:pre-wrap;margin-top:8px';
+      msgDiv.textContent=r.mensagem;
+      var wrap=document.createElement('div');
+      wrap.className='result';
+      wrap.innerHTML='<h4 style="margin-bottom:8px">✓ Controle salvo!</h4>';
+      wrap.appendChild(msgDiv);
+      res.innerHTML='';
+      res.appendChild(wrap);
       state.jaSalvo=true;env.disabled=false;env.textContent='Enviar ✓';
       res.scrollIntoView({behavior:'smooth'});
     },
@@ -990,16 +996,18 @@ function usarModelo(id){
 function abrirReuniao(id){
   var rs=state._reunioes||[];
   var r=null;
-  for(var i=0;i<rs.length;i++){
-    if(rs[i].id==id){r=rs[i];break;}
-  }
+  for(var i=0;i<rs.length;i++){if(rs[i].id==id){r=rs[i];break;}}
   if(!r)return;
   state._reuniaoAtiva=JSON.parse(JSON.stringify(r));
+  // Garantir que estamos na sub-aba planejar
+  state.reuniaoTab='planejar';
+  var body=document.getElementById('reuniaoBody');
+  if(!body){renderReuniaoShell();return;}
   renderReuniaoAtiva();
 }
 
 function deletarReuniao(id){
-  if(!confirm('Excluir este modelo?'))return;
+  if(!confirm('Tem certeza que quer excluir este modelo de reunião? Essa ação não pode ser desfeita.'))return;
   callAPI('deleteReuniao',{rowId:id},function(){
     state._reunioes=(state._reunioes||[]).filter(function(r){return String(r.id)!==String(id);});
     renderPlanejar();
@@ -1313,7 +1321,7 @@ function adicionarProva(){
   callAPI('saveProva',{prova:prova},function(){loadProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 function deletarProva(id){
-  if(!confirm('Remover esta prova?'))return;
+  if(!confirm('Tem certeza que quer excluir esta prova? Essa ação não pode ser desfeita.'))return;
   callAPI('deleteProva',{rowId:id},function(){state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});renderProvas();},function(e){alert('Erro: '+(e.message||e));});
 }
 
@@ -1357,15 +1365,16 @@ function initDragDrop() {
 function duplicarReuniao(id){
   var rs=state._reunioes||[];
   var r=null;
-  for(var i=0;i<rs.length;i++){
-    if(rs[i].id==id){r=rs[i];break;}
-  }
+  for(var i=0;i<rs.length;i++){if(rs[i].id==id){r=rs[i];break;}}
   if(!r)return;
   var copia=JSON.parse(JSON.stringify(r));
   copia.id=null;
   copia.nome=r.nome+' (cópia)';
   copia.publicadaData='';
   state._reuniaoAtiva=copia;
+  state.reuniaoTab='planejar';
+  var body=document.getElementById('reuniaoBody');
+  if(!body){renderReuniaoShell();return;}
   renderReuniaoAtiva();
 }
 
@@ -1455,7 +1464,7 @@ function salvarProva(id){
 }
 
 function excluirProva(id){
-  if(!confirm('Tem certeza que deseja excluir esta prova?'))return;
+  if(!confirm('Tem certeza que quer excluir esta prova? Essa ação não pode ser desfeita.'))return;
   callAPI('deleteProva',{rowId:id},function(){
     mostrarToast('✓ Prova excluída');
     state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});
@@ -1657,18 +1666,26 @@ function _agShare(idx){
   if(!r)return;
   function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
   function toTime(m){var h=Math.floor(m/60)%24,mm=m%60;return(h<10?'0':'')+h+'h'+(mm<10?'0':'')+mm;}
-  var msg='';
-  msg+='*REUNIÃO — '+r.nome+'*\n';
-  msg+=r.publicadaFmt+' · '+r.tipo+'\n';
-  msg+=r.inicio+' → '+r.fim+'\n\n';
+  function diaSemana(d){
+    if(!d)return'';
+    var dias=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    var dt=new Date(d+'T12:00:00');
+    return dias[dt.getDay()]||'';
+  }
+  var pub=r.publicadaFmt||'';
+  var dia=diaSemana(r.publicadaData||r.publicadaFmt);
+  var msg='╔══ *PROGRAMAÇÃO* ══╗\n';
+  msg+='📅 *'+pub+'* — '+dia+'\n';
+  msg+='⏰ '+r.inicio+' → '+r.fim+'\n\n';
   var cursor=toMin(r.inicio);
   (r.atividades||[]).forEach(function(a){
-    msg+=toTime(cursor)+' → '+a.nome+' ('+a.min+'min)\n';
+    msg+='*'+toTime(cursor)+'* → '+a.nome+' _('+a.min+'min)_\n';
     cursor+=parseInt(a.min)||0;
   });
-  msg+='\nTérmino: '+toTime(cursor);
+  msg+='\n🏁 Término: *'+toTime(cursor)+'*\n';
+  msg+='\n_💡 Clube Thomas Edison_';
   if(navigator.share){
-    navigator.share({title:'Reunião — '+r.nome,text:msg}).catch(function(){});
+    navigator.share({title:'Programação — '+r.nome,text:msg}).catch(function(){});
   } else if(navigator.clipboard){
     navigator.clipboard.writeText(msg).then(function(){mostrarToast('✓ Copiado!');}).catch(function(){});
   }
