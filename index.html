@@ -17,20 +17,17 @@ body{background:#0a0a0a;color:#fff;font-family:'Segoe UI',sans-serif;-webkit-tap
 .wrap{max-width:480px;margin:0 auto;padding:16px 16px 80px;}
 .load{text-align:center;color:#FFC400;padding:40px;font-size:16px;animation:pulse 1.5s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-/* #7: Header menor */
 .topo{margin-bottom:4px;}
 .kicker{font-size:9px;font-weight:700;letter-spacing:2px;color:#FFC400;text-transform:uppercase;}
 .titulo{font-size:17px;font-weight:900;letter-spacing:.3px;}
 .quem{font-size:12px;color:#aaa;margin-top:1px;}
 .linha{height:2px;background:linear-gradient(90deg,#FFC400,transparent);margin:6px 0 12px;}
-/* Pills */
 .pills{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .pills::-webkit-scrollbar{display:none;}
 .pills-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;-webkit-overflow-scrolling:touch;-ms-overflow-style:none;scrollbar-width:none;}
 .pills-row::-webkit-scrollbar{display:none;}
 .pill{background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;-webkit-appearance:none;}
 .pill.on{background:#FFC400;color:#000;border-color:#FFC400;}
-/* Presença */
 .nome{font-size:14px;font-weight:600;color:#fff;}
 .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
 .chk{background:#141414;border:1px solid #222;border-radius:10px;padding:10px 6px;font-size:12px;color:#555;cursor:pointer;transition:all .15s;text-align:center;line-height:1.3;-webkit-appearance:none;}
@@ -39,8 +36,9 @@ body{background:#0a0a0a;color:#fff;font-family:'Segoe UI',sans-serif;-webkit-tap
 .stat{flex:1;background:#141414;border:1px solid #222;border-radius:12px;padding:12px;text-align:center;}
 .stat .n{font-size:28px;font-weight:900;color:#FFC400;}
 .stat .l{font-size:11px;color:#666;margin-top:2px;}
-/* #2: Campo justificativa */
-.just{width:100%;background:#141414;border:1px solid #333;color:#ccc;border-radius:8px;padding:8px 10px;font-size:13px;margin-top:4px;}
+/* #1: justificativa proporcional e suave */
+.just{width:100%;background:#141414;border:1px solid #2a2a2a;color:#777;border-radius:6px;padding:6px 8px;font-size:12px!important;margin-top:4px;}
+.just:focus{outline:none;border-color:#444;color:#aaa;}
 .addrow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .addrow input{flex:2;min-width:120px;background:#141414;border:1px solid #333;color:#fff;border-radius:10px;padding:10px;font-size:16px;}
 .addbtn{background:#FFC400;color:#000;border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;-webkit-appearance:none;}
@@ -58,21 +56,21 @@ body{background:#0a0a0a;color:#fff;font-family:'Segoe UI',sans-serif;-webkit-tap
 .tag{display:inline-block;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-right:4px;}
 .result{background:#141414;border:1px solid #222;border-radius:10px;padding:12px;margin-top:8px;}
 .acoes{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
-/* #5: Conteúdo Quill renderizado */
-.ql-content{white-space:pre-wrap;color:#ccc;font-size:13px;line-height:1.5;}
+/* #3: conteúdo Quill */
+.ql-content{color:#ccc;font-size:13px;line-height:1.5;}
 .ql-content p{margin-bottom:4px;}
 .ql-content strong{color:#fff;font-weight:700;}
-.ql-content em{color:#ddd;font-style:italic;}
-/* Inputs — font-size 16px evita zoom iOS */
+.ql-content em{font-style:italic;}
+.ql-content ol,.ql-content ul{padding-left:18px;margin-bottom:4px;}
+/* Inputs */
 input,select,textarea{font-size:16px!important;}
-/* #8: data do header não faz zoom (pequena) */
+.just{font-size:12px!important;}
 #dt,#dt_unit{font-size:12px!important;color:#888;}
-/* Textarea descrição atividades */
 textarea[id^="_adesc_"]{font-size:13px!important;}
 /* Sortable */
 .sortable-ghost{opacity:0.4;background:#FFC40022;border:2px dashed #FFC400!important;}
 .sortable-chosen{opacity:0.85;box-shadow:0 4px 20px rgba(0,0,0,.5);}
-/* Quill editor — font 16px evita zoom iOS */
+/* Quill */
 .ql-toolbar{border-color:#333!important;background:#111;}
 .ql-toolbar .ql-stroke{stroke:#aaa!important;}
 .ql-toolbar .ql-fill{fill:#aaa!important;}
@@ -80,7 +78,6 @@ textarea[id^="_adesc_"]{font-size:13px!important;}
 .ql-container{border-color:#333!important;font-size:16px;}
 .ql-editor{min-height:80px;color:#fff!important;font-size:16px!important;}
 .ql-editor.ql-blank::before{color:#555!important;}
-/* Responsive */
 @media(min-width:768px){.wrap{max-width:900px;padding:24px 32px 60px;}.checks{grid-template-columns:repeat(6,1fr);}.stats{gap:16px;}.stat .n{font-size:36px;}.pill{padding:9px 18px;font-size:14px;}.titulo{font-size:22px;}}
 @media(min-width:1200px){.wrap{max-width:1100px;}}
 </style>
@@ -969,11 +966,17 @@ function updateTimebar(){
 
 // ── ABA PLANEJAR ──────────────────────────────────────────────
 function loadPlanejar(){
+  var seq=++_navSeq;
   callAPI('getReunioes',{},function(r){
+    if(_navSeq!==seq)return;
     state._reunioes=r.reunioes;
     if(state._reuniaoAtiva)renderReuniaoAtiva();
     else renderPlanejar();
-  },function(e){document.getElementById('reuniaoBody').innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>';});
+  },function(e){
+    if(_navSeq!==seq)return;
+    var b=document.getElementById('reuniaoBody');
+    if(b)b.innerHTML='<div style="color:#e88;padding:16px">Erro: '+(e.message||e)+'</div>';
+  });
 }
 
 function renderPlanejar(){
@@ -989,12 +992,16 @@ function renderPlanejar(){
       var pubTag=r.publicada?'<span style="color:#4ade80;font-size:11px">🟢 '+r.publicadaFmt+'</span>':'<span style="color:#666;font-size:11px">Não publicada</span>';
       html+='<div style="background:#141414;border:1px solid #222;border-radius:12px;padding:12px 14px;margin-bottom:8px">'
         +'<div style="display:flex;align-items:flex-start;gap:8px">'
-        +'<div style="flex:1;cursor:pointer" onclick="abrirReuniao('+r.id+')">'
+        +'<div style="flex:1;cursor:pointer;min-width:0" onclick="abrirReuniao('+r.id+')">'
         +'<div style="font-weight:700;font-size:15px">'+esc(r.nome)+'</div>'
         +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(r.tipo)+' · '+r.inicio+' → '+r.fim+' · '+totalMin+'min</div>'
         +'<div style="margin-top:4px">'+pubTag+'</div>'
         +'</div>'
-        /* ▲▼ removidos — descomente para restaurar */ +'';
+        +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
+        +'<button onclick="event.stopPropagation();abrirReuniao('+r.id+')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:16px;padding:6px" title="Editar">✏️</button>'
+        +'<button onclick="event.stopPropagation();duplicarReuniao('+r.id+')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:16px;padding:6px" title="Duplicar">⧉</button>'
+        +'<button onclick="event.stopPropagation();deletarReuniao('+r.id+')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:16px;padding:6px;font-weight:300" title="Excluir">✕</button>'
+        +'</div>';
     });
   }
   body.innerHTML=html;
@@ -1293,15 +1300,12 @@ function renderProvas(){
       html+='<div id="'+cid+'" style="display:none;padding:0 14px 14px;border-top:1px solid #1a1a1a">';
       if(p.pontuacao)html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">🏆 Pontuação</div><div style="color:#FFC400;font-weight:700;margin-top:2px;font-size:14px;white-space:pre-wrap">'+esc(p.pontuacao)+'</div></div>';
       if(p.descricao){
-        var descHtml=p.descricao;
-        // Detectar se é HTML do Quill (começa com <p>) ou texto puro
-        if(descHtml.indexOf('<p>')===0||descHtml.indexOf('<ol>')===0||descHtml.indexOf('<ul>')===0){
-          html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">📋 Descrição/Regra</div>'
-            +'<div class="ql-content" style="color:#ccc;font-size:13px;margin-top:4px">'+descHtml+'</div></div>';
-        } else {
-          html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">📋 Descrição/Regra</div>'
-            +'<div style="color:#ccc;font-size:13px;margin-top:4px;white-space:pre-wrap">'+esc(descHtml)+'</div></div>';
-        }
+        var _dh=p.descricao;
+        var isHtml=_dh.indexOf('<p>')===0||_dh.indexOf('<ol>')===0||_dh.indexOf('<ul>')===0||_dh.indexOf('<strong>')===0;
+        html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">📋 Descrição/Regra</div>'
+          +'<div style="color:#ccc;font-size:13px;margin-top:4px;'+(isHtml?'':'white-space:pre-wrap')+'">'
+          +(isHtml?_dh:esc(_dh))
+          +'</div></div>';
       }
       if(p.materiais)html+='<div style="margin-top:10px"><div style="font-size:11px;color:#aaa">🎒 Materiais</div><div style="color:#ccc;font-size:13px;margin-top:2px">'+esc(p.materiais)+'</div></div>';
       
@@ -1509,6 +1513,15 @@ function salvarProva(id){
   },function(e){alert('Erro: '+(e.message||e));});
 }
 
+function excluirProva(id){
+  if(!confirm('Tem certeza que deseja excluir esta prova?'))return;
+  callAPI('deleteProva',{rowId:id},function(){
+    mostrarToast('✓ Prova excluída');
+    state._provas=(state._provas||[]).filter(function(p){return p.id!==id;});
+    renderProvas();
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
 
 function calcAgendaHtml(inicio, atividades, soEscrita){
   function toMin(t){var p=String(t||'00:00').split(':');return(parseInt(p[0])||0)*60+(parseInt(p[1])||0);}
@@ -1535,7 +1548,9 @@ function calcAgendaHtml(inicio, atividades, soEscrita){
 var _agendaMap={};
 // Patch: substitui loadAgenda e renderAgenda com horários calculados e linhas alternadas
 function loadAgenda(){
+  var seq=++_navSeq;
   callAPI('getReunioesPublicadas',{},function(r){
+    if(typeof _navSeq!=='undefined'&&_navSeq!==seq)return;
     state._agenda=r.reunioes;renderAgenda();
   },function(e){
     var body=document.getElementById('reuniaoBody');
@@ -1645,22 +1660,17 @@ function compartilharAgendaObj(el){
 }
 
 function compartilharNativo(btn){
-  var idx=parseInt(btn.getAttribute('data-idx')||'0');
+  // Subir até o elemento com data-idx (o clique pode ser no SVG interno)
+  var el=btn;
+  while(el&&!el.getAttribute('data-idx'))el=el.parentElement;
+  var idx=el?parseInt(el.getAttribute('data-idx')||'0'):0;
   var r=_agIdxArr[idx];
   if(!r)return;
   var texto=_buildMsgWA(r);
-  // Usar SOMENTE Web Share API — não abre WhatsApp antes
   if(navigator.share){
     navigator.share({title:'Reunião — '+r.nome,text:texto}).catch(function(){});
-  } else {
-    // Fallback: copiar para clipboard
-    if(navigator.clipboard){
-      navigator.clipboard.writeText(texto)
-        .then(function(){mostrarToast('✓ Texto copiado!');})
-        .catch(function(){});
-    } else {
-      mostrarToast('Use o botão WhatsApp para compartilhar.');
-    }
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(texto).then(function(){mostrarToast('✓ Texto copiado!');}).catch(function(){});
   }
 }
 
