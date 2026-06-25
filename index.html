@@ -535,7 +535,7 @@ function loadUnidades() {
   if (!CTX || CTX.role !== 'admin') { loadRoster(); return; }
   state.view = 'unidades';
   state._unidadesLoaded = true;
-  if (state.unidadesTab === undefined) state.unidadesTab = null;
+  state.unidadesTab = null; // sempre volta para o painel
   renderUnidades();
 }
 
@@ -2012,6 +2012,7 @@ function renderEspecialidadesTab(){
               +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
               +(ok&&podeEditar?'<input type="date" value="'+(toYMD(e.data)||hoje())+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:200px;zoom:0.75">':'')
               +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
+              +(podeEditar?'<button onclick="deleteEspItem(\''+esc(key)+'\',\''+esc(e.nome)+'\')" style="margin-top:6px;background:none;border:1px solid #e55;color:#e55;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer">Excluir</button>':'')
               +'</div></div>';
           });
           if(hasEdits&&podeEditar){
@@ -2174,7 +2175,7 @@ function filtrarEspecialidadesCatalogo(){
   var sel=document.getElementById('_espCatSel_');
   var nomeSel=document.getElementById('_espNome_');
   if(!sel||!nomeSel)return;
-  var cat=(sel.value||'').trim();
+  var cat=(sel.value||'').trim().replace(/\s+/g,' ');
   if(!cat){
     nomeSel.innerHTML='<option value="">Selecione a categoria primeiro...</option>';
     return;
@@ -2184,7 +2185,7 @@ function filtrarEspecialidadesCatalogo(){
   if(!esps){
     var catLow=cat.toLowerCase();
     Object.keys(catalog).forEach(function(k){
-      if(k.trim().toLowerCase()===catLow)esps=catalog[k];
+      if(k.trim().replace(/\s+/g,' ').toLowerCase()===catLow)esps=catalog[k];
     });
   }
   esps=esps||[];
@@ -2229,6 +2230,16 @@ function confirmarAddEsp(){
     function(){mostrarToast('✓ Especialidade adicionada!');loadEspecialidadesTab();},
     function(e){alert('Erro: '+(e.message||e));}
   );
+}
+
+function deleteEspItem(key, espNome){
+  if(!confirm('Tem certeza que quer excluir "'+espNome+'" desta especialidade? Essa ação não pode ser desfeita.'))return;
+  callAPI('deleteEspecialidade',{key:key, espNome:espNome},function(r){
+    mostrarToast('Especialidade removida.');
+    loadEspecialidadesTab();
+  },function(e){
+    mostrarToast('Erro ao excluir: '+(e.message||e));
+  });
 }
 
 </script>
