@@ -272,8 +272,8 @@ function render(){
     +'<div id="lista"></div>'
     // #5: placeholder sem "(some amanhã)"
     +'<div style="display:flex;flex-direction:row;gap:6px;margin-bottom:12px;align-items:center">'
-    +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
-    +'<select id="vis_trouxe" style="flex:2;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box">'
+    +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:13px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
+    +'<select id="vis_trouxe" style="flex:1;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box">'
     +'<option value="">Quem trouxe?</option>'
     +(state.rows.filter(function(r){return r.tipo!=='Visita';}).map(function(r){return'<option>'+esc(r.nome)+'</option>';}).join(''))
     +'</select>'
@@ -628,8 +628,8 @@ function _carregarUnidade(unit) {
     body.innerHTML = banner
       +'<div id="lista"></div>'
       +'<div style="display:flex;flex-direction:row;gap:6px;margin-bottom:12px;align-items:center">'
-        +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
-        +'<select id="vis_trouxe" style="flex:2;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box"><option value="">Quem trouxe?</option>'+visOpts+'</select>'
+        +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:13px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
+        +'<select id="vis_trouxe" style="flex:1;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box"><option value="">Quem trouxe?</option>'+visOpts+'</select>'
         +'<button onclick="addVisita()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:0 14px;height:48px;min-height:48px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0">+ Visita</button>'
       +'</div>'
       +statsHtml()+aviso
@@ -1830,9 +1830,9 @@ function renderEspecialidades(){
                 ?'<button onclick="toggleReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+')" style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
                 :'<div style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#222')+';background:'+(ok?'#4ade80':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:900">'+(ok?'✓':'')+'</div>')
               +'<div style="flex:1">'
-              +'<div style="font-size:11px;color:#555;margin-bottom:2px">'+( i+1 )+'.</div>'
-              +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(req)+'</div>'
-              +(ok&&podeEditar?'<input type="date" value="'+toYMD(dataConc)+'" onchange="setDataReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px;zoom:0.75">':'')
+              +'<div style="font-size:11px;color:#555;margin-bottom:2px">'+( typeof req==='object'&&req.grupo ? esc(req.grupo) : (i+1)+'.' )+'.</div>'
+              +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(typeof req==='object'?req.req:req)+'</div>'
+              +(ok&&podeEditar?'<input type="date" value="'+(toYMD(dataConc)||hoje())+'" onchange="setDataReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:200px;zoom:0.75">':'')
               +(ok&&!podeEditar&&dataConc?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(dataConc)+'</div>':'')
               +'</div></div>';
           });
@@ -2010,7 +2010,7 @@ function renderEspecialidadesTab(){
               +'</div>'
               +(e.categoria?'<div style="font-size:10px;color:#FFC400;background:#FFC40015;border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:2px">'+esc(e.categoria)+'</div>':'')
               +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
-              +(ok&&podeEditar?'<input type="date" value="'+toYMD(e.data)+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px;zoom:0.75">':'')
+              +(ok&&podeEditar?'<input type="date" value="'+(toYMD(e.data)||hoje())+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:200px;zoom:0.75">':'')
               +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
               +'</div></div>';
           });
@@ -2088,13 +2088,29 @@ function salvarEspMembro(key){
 
 // ── Modal: adicionar especialidade ────────────────────────────
 function abrirModalAddEsp(){
-  // Primeiro carrega o catálogo, depois abre o modal
+  // Usar cache se disponível — catálogo raramente muda
+  if(window._catalogoCache && Object.keys(window._catalogoCache).length > 0){
+    var cats=Object.keys(window._catalogoCache).sort();
+    _abrirModalEspComCatalogo(window._catalogoCache, cats);
+    // Atualizar cache em background silenciosamente
+    callAPI('getCatalogo',{},function(r){
+      if(r.catalogo && Object.keys(r.catalogo).length > 0){
+        window._catalogoCache=r.catalogo;
+      }
+    },function(){});
+    return;
+  }
+  // Primeira vez: buscar da API
   callAPI('getCatalogo',{},function(r){
     var catalogo=r.catalogo||{};
+    if(Object.keys(catalogo).length > 0){
+      window._catalogoCache=catalogo; // salvar no cache
+    }
     var cats=Object.keys(catalogo).sort();
     _abrirModalEspComCatalogo(catalogo,cats);
   },function(){
-    _abrirModalEspComCatalogo({},[]); // fallback sem catálogo
+    // Falhou e não tem cache — abrir vazio com aviso
+    mostrarToast('⚠️ Sem conexão. Tente novamente.');
   });
 }
 
