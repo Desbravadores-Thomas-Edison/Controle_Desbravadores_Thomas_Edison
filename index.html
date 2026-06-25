@@ -2131,19 +2131,10 @@ function _abrirModalEspComCatalogo(catalogo,cats){
   ov.id='_addEspOv_';
   ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
 
-  // Pills de categoria — sem select, sem onchange, onclick direto
-  var catPillsHtml='';
-  cats.forEach(function(c,ci){
-    catPillsHtml+='<button type="button" id="_cp'+ci+'"'
-      +' data-cat="'+esc(c)+'"'
-      +' onclick="selecionarCatEsp(this.dataset.cat)"'
-      +' style="background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap">'
-      +esc(c)+'</button>';
-  });
-  var catSel='<div id="_espCatPills_" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">'
-    +catPillsHtml
-    +'</div>'
-    +'<input type="hidden" id="_espCatSel_" value="">';
+  var catSel='<select id="_espCatSel_" style="width:100%;background:#0a0a0a;border:1px solid #FFC400;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
+    +'<option value="">Selecione a categoria...</option>'
+    +cats.map(function(c){return'<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join('')
+    +'</select>';
 
   var nomeSel='<select id="_espNome_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
     +'<option value="">Selecione a categoria primeiro...</option>'
@@ -2174,6 +2165,17 @@ function _abrirModalEspComCatalogo(catalogo,cats){
     +'<button onclick="confirmarAddEsp()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer">Adicionar ✓</button>'
     +'</div></div>';
   document.body.appendChild(ov);
+  // Polling: detecta mudança no select sem depender de onchange
+  var _lastCat='';
+  var _pollInterval=setInterval(function(){
+    var s=document.getElementById('_espCatSel_');
+    if(!s){clearInterval(_pollInterval);return;}
+    var v=(s.value||'').trim();
+    if(v!==_lastCat){
+      _lastCat=v;
+      if(v)filtrarEspecialidadesCatalogo();
+    }
+  },300);
   // Adicionar listeners explícitos (mais confiável que atributos onchange no iOS)
 
 }
@@ -2181,11 +2183,8 @@ function _abrirModalEspComCatalogo(catalogo,cats){
 function filtrarEspecialidadesCatalogo(){
   var sel=document.getElementById('_espCatSel_');
   var nomeSel=document.getElementById('_espNome_');
-  if(!nomeSel)return;
-  var cat=sel?(sel.value||'').trim().replace(/\s+/g,' '):
-    (document.querySelector('[id^="_cp"][style*="#FFC400"]')||{}).dataset&&
-    (document.querySelector('[id^="_cp"][style*="#FFC400"]').dataset.cat||'');
-  cat=(cat||'').trim().replace(/\s+/g,' ');
+  if(!sel||!nomeSel)return;
+  var cat=(sel.value||'').trim().replace(/\s+/g,' ');
   if(!cat){
     nomeSel.innerHTML='<option value="">Selecione a categoria primeiro...</option>';
     return;
@@ -2243,7 +2242,7 @@ function confirmarAddEsp(){
     });
     if(found&&typeof found==='object')cor=found.cor||'';
   }
-  var ov=document.getElementById('_addEspOv_');if(ov)ov.remove();
+  var ov=document.getElementById('_addEspOv_');if(ov)ov.remove();if(typeof _pollInterval!=='undefined')clearInterval(_pollInterval);
   callAPI('addEspecialidade',{dados:{nome:nome,escopo:escVal,categoria:cat,descricao:'',opcional:opcional,cor:cor}},
     function(){mostrarToast('✓ Especialidade adicionada!');loadEspecialidadesTab();},
     function(e){alert('Erro: '+(e.message||e));}
