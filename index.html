@@ -2004,15 +2004,13 @@ function renderEspecialidadesTab(){
                 ?'<button onclick="toggleEspItem(\''+esc(key)+'\',\''+esc(e.nome)+'\')" style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#333')+';background:'+(ok?'#4ade80':'transparent')+';color:#000;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-weight:900">'+(ok?'✓':'')+'</button>'
                 :'<div style="flex-shrink:0;width:22px;height:22px;border-radius:5px;border:2px solid '+(ok?'#4ade80':'#222')+';background:'+(ok?'#4ade80':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:900">'+(ok?'✓':'')+'</div>')
               +'<div style="flex:1">'
-              +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
-              +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(e.nome)+'</div>'
-              +(e.opcional?'<span style="font-size:10px;color:#888;background:#222;border-radius:4px;padding:1px 5px">opcional</span>':'')
+              +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;justify-content:space-between">'
+              +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';'+(ok?'text-decoration:line-through;opacity:.7':'')+';flex:1;min-width:0">' +esc(e.nome)+'</div>'
+              +(podeEditar?'<button onclick="deleteEspItem(\''+esc(key)+'\',\''+esc(e.nome)+'\')" style="flex-shrink:0;background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:0 2px" title="Excluir">x</button>':'')
               +'</div>'
               +(e.categoria?'<div style="font-size:10px;color:#FFC400;background:#FFC40015;border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:2px">'+esc(e.categoria)+'</div>':'')
-              +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
               +(ok&&podeEditar?'<input type="date" value="'+(toYMD(e.data)||hoje())+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:200px;zoom:0.75">':'')
               +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
-              +(podeEditar?'<button onclick="deleteEspItem(\''+esc(key)+'\',\''+esc(e.nome)+'\')" style="margin-top:6px;background:none;border:1px solid #e55;color:#e55;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer">Excluir</button>':'')
               +'</div></div>';
           });
           if(hasEdits&&podeEditar){
@@ -2133,7 +2131,7 @@ function _abrirModalEspComCatalogo(catalogo,cats){
   ov.id='_addEspOv_';
   ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:20px;box-sizing:border-box';
 
-  var catSel='<select id="_espCatSel_" onchange="filtrarEspecialidadesCatalogo()" onfocus="filtrarEspecialidadesCatalogo()" style="width:100%;background:#0a0a0a;border:1px solid #FFC400;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
+  var catSel='<select id="_espCatSel_" onchange="filtrarEspecialidadesCatalogo()" style="width:100%;background:#0a0a0a;border:1px solid #FFC400;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
     +'<option value="">Selecione a categoria...</option>'
     +cats.map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('')
     +'</select>';
@@ -2186,6 +2184,14 @@ function filtrarEspecialidadesCatalogo(){
     var catLow=cat.toLowerCase();
     Object.keys(catalog).forEach(function(k){
       if(k.trim().replace(/\s+/g,' ').toLowerCase()===catLow)esps=catalog[k];
+    });
+  }
+  // Fallback: buscar pelo texto visível da opção selecionada
+  if(!esps && sel.selectedIndex>0){
+    var visText=(sel.options[sel.selectedIndex].text||'').trim().replace(/\s+/g,' ');
+    var visLow=visText.toLowerCase();
+    Object.keys(catalog).forEach(function(k){
+      if(!esps && k.trim().replace(/\s+/g,' ').toLowerCase()===visLow)esps=catalog[k];
     });
   }
   esps=esps||[];
