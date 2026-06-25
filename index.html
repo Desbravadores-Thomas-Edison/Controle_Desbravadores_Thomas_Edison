@@ -272,12 +272,12 @@ function render(){
     +'<div id="lista"></div>'
     // #5: placeholder sem "(some amanhã)"
     +'<div style="display:flex;flex-direction:row;gap:6px;margin-bottom:12px;align-items:center">'
-    +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:80px;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:44px;box-sizing:border-box">'
-    +'<select id="vis_trouxe" style="flex:2;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:44px;font-size:13px!important;box-sizing:border-box">'
+    +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
+    +'<select id="vis_trouxe" style="flex:2;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box">'
     +'<option value="">Quem trouxe?</option>'
     +(state.rows.filter(function(r){return r.tipo!=='Visita';}).map(function(r){return'<option>'+esc(r.nome)+'</option>';}).join(''))
     +'</select>'
-    +'<button onclick="addVisita()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:0 14px;height:44px;min-height:44px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;line-height:44px">+ Visita</button></div>'
+    +'<button onclick="addVisita()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:0 14px;height:48px;min-height:48px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;line-height:48px">+ Visita</button></div>'
     +statsHtml()+aviso
 
     +'<div style="height:16px"></div><div id="_rcard_"></div><div id="res"></div>';
@@ -627,10 +627,10 @@ function _carregarUnidade(unit) {
 
     body.innerHTML = banner
       +'<div id="lista"></div>'
-      +'<div class="addrow" style="flex-wrap:wrap;gap:6px">'
-        +'<input id="vis" placeholder="Nome do visitante" style="flex:2;min-width:120px;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;height:26px">'
-        +'<select id="vis_trouxe" style="flex:1;min-width:100px;background:#141414;border:1px solid #2a2a2a;color:#888;border-radius:6px;padding:3px 8px;height:26px;font-size:16px!important"><option value="">Quem trouxe?</option>'+visOpts+'</select>'
-        +'<button class="addbtn" onclick="addVisita()">+ Visita</button>'
+      +'<div style="display:flex;flex-direction:row;gap:6px;margin-bottom:12px;align-items:center">'
+        +'<input id="vis" placeholder="Nome Visita" style="flex:1;min-width:0;font-size:16px!important;color:#888;background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:0 10px;height:48px;box-sizing:border-box">'
+        +'<select id="vis_trouxe" style="flex:2;min-width:0;background:#141414;border:1px solid #2a2a2a;color:#aaa;border-radius:10px;padding:0 10px;height:48px;font-size:13px!important;box-sizing:border-box"><option value="">Quem trouxe?</option>'+visOpts+'</select>'
+        +'<button onclick="addVisita()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:0 14px;height:48px;min-height:48px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0">+ Visita</button>'
       +'</div>'
       +statsHtml()+aviso
       +'<div style="height:16px"></div>'
@@ -1832,7 +1832,7 @@ function renderEspecialidades(){
               +'<div style="flex:1">'
               +'<div style="font-size:11px;color:#555;margin-bottom:2px">'+( i+1 )+'.</div>'
               +'<div style="font-size:13px;color:'+(ok?'#4ade80':'#ccc')+';line-height:1.4;'+(ok?'text-decoration:line-through;opacity:.7':'')+'">' +esc(req)+'</div>'
-              +(ok&&podeEditar?'<input type="date" value="'+toYMD(dataConc)+'" onchange="setDataReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px">':'')
+              +(ok&&podeEditar?'<input type="date" value="'+toYMD(dataConc)+'" onchange="setDataReqClasse(\''+esc(key)+'\',\''+esc(classe)+'\','+i+',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px;zoom:0.75">':'')
               +(ok&&!podeEditar&&dataConc?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(dataConc)+'</div>':'')
               +'</div></div>';
           });
@@ -2010,7 +2010,7 @@ function renderEspecialidadesTab(){
               +'</div>'
               +(e.categoria?'<div style="font-size:10px;color:#FFC400;background:#FFC40015;border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:2px">'+esc(e.categoria)+'</div>':'')
               +(e.descricao?'<div style="font-size:11px;color:#555;margin-top:2px">'+esc(e.descricao)+'</div>':'')
-              +(ok&&podeEditar?'<input type="date" value="'+toYMD(e.data)+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px">':'')
+              +(ok&&podeEditar?'<input type="date" value="'+toYMD(e.data)+'" onchange="setEspData(\''+esc(key)+'\',\''+esc(e.nome)+'\',this.value)" style="margin-top:4px;background:#0a0a0a;border:1px solid #333;color:#4ade80;border-radius:6px;padding:3px 6px;font-size:11px;width:130px;zoom:0.75">':'')
               +(ok&&!podeEditar&&e.data?'<div style="font-size:11px;color:#4ade80;margin-top:2px">'+esc(e.data)+'</div>':'')
               +'</div></div>';
           });
