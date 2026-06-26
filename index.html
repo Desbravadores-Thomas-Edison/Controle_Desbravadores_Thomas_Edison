@@ -2673,7 +2673,7 @@ function _abrirModalEspComCatalogo(catalogo,cats){
     +cats.map(function(c){return'<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join('')
     +'</select>';
 
-  var nomeSel='<select id="_espNome_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
+  var nomeSel='<select id="_espNome_" onclick="if(this.options.length<=1)filtrarEspecialidadesCatalogo()" onfocus="if(this.options.length<=1)filtrarEspecialidadesCatalogo()" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:12px;font-size:16px;margin-bottom:10px;box-sizing:border-box;-webkit-appearance:auto">'
     +'<option value="">Selecione a categoria primeiro...</option>'
     +'</select>';
 
