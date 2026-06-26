@@ -2712,20 +2712,15 @@ function filtrarEspecialidadesCatalogo(){
   var nomeSel=document.getElementById('_espNome_');
   if(!sel||!nomeSel)return;
   var cat=(sel.value||'').trim().replace(/\s+/g,' ');
-  if(!cat){
-    nomeSel.innerHTML='<option value="">Selecione a categoria primeiro...</option>';
-    return;
-  }
   var catalog=window._espCatalogo||{};
   var esps=catalog[cat];
-  if(!esps){
+  if(!esps && cat){
     var catLow=cat.toLowerCase();
     Object.keys(catalog).forEach(function(k){
       if(k.trim().replace(/\s+/g,' ').toLowerCase()===catLow)esps=catalog[k];
     });
   }
-  // Fallback: buscar pelo texto visível da opção selecionada
-  if(!esps && sel.selectedIndex>0){
+  if(!esps && cat && sel.selectedIndex>0){
     var visText=(sel.options[sel.selectedIndex].text||'').trim().replace(/\s+/g,' ');
     var visLow=visText.toLowerCase();
     Object.keys(catalog).forEach(function(k){
@@ -2733,12 +2728,23 @@ function filtrarEspecialidadesCatalogo(){
     });
   }
   esps=esps||[];
-  var html='<option value="">Selecione a especialidade...</option>';
+  // ── Substituir elemento inteiro em vez de atualizar innerHTML ──
+  // iOS cacheia o select vazio; um elemento novo força releitura
+  var novoSel=document.createElement('select');
+  novoSel.id='_espNome_';
+  novoSel.style.cssText=nomeSel.style.cssText;
+  var placeholder=document.createElement('option');
+  placeholder.value='';
+  placeholder.textContent=cat?'Selecione a especialidade...':'Selecione a categoria primeiro...';
+  novoSel.appendChild(placeholder);
   esps.forEach(function(e){
     var nome=typeof e==='object'?e.nome:e;
-    html+='<option value="'+nome+'">'+nome+'</option>';
+    var opt=document.createElement('option');
+    opt.value=nome;
+    opt.textContent=nome;
+    novoSel.appendChild(opt);
   });
-  nomeSel.innerHTML=html;
+  nomeSel.parentNode.replaceChild(novoSel,nomeSel);
 }
 
 function selEscopoEsp(tipo){
