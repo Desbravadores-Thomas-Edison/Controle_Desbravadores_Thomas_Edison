@@ -837,7 +837,11 @@ function render(){
     +'<button onclick="addVisita()" style="background:#FFC400;color:#000;border:none;border-radius:10px;padding:0 14px;height:48px;min-height:48px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;line-height:48px">+ Visita</button></div>'
     +statsHtml()+aviso
 
-    +'<div style="height:16px"></div><div id="_rcard_"></div><div id="res"></div>';
+    +'<div style="height:16px"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px">'
+    +'<button class="enviar" id="env" onclick="enviar()" style="flex:1;min-width:0">'+(state.jaSalvo?'✓ Atualizar Presença':'✓ Enviar Presença')+'</button>'
+    +'</div>'
+    +'<div id="_rcard_"></div><div id="res"></div>';
   $('app').innerHTML=html;
   $('dt').addEventListener('change',function(e){state.date=e.target.value;loadRoster();});
   renderLista();
@@ -951,14 +955,35 @@ function loadRoster(){
 
 function loadReuniaoPublicada(){
   callAPI('getReuniaoPublicada',{date:state.date},function(r){
-    var el=$('_rcard_');if(!el||!r.reuniao)return;
-    var re=r.reuniao;
-    var totalMin=(re.atividades||[]).reduce(function(s,a){return s+(a.min||0);},0);
-    el.innerHTML='<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:14px;padding:14px;margin-bottom:14px">'
-      +'<div style="font-size:11px;color:#4ade80;font-weight:700;margin-bottom:4px">📋 REUNIÃO — '+esc(re.tipo)+' · '+re.inicio+' → '+re.fim+'</div>'
-      +'<div style="font-weight:800;font-size:15px;margin-bottom:8px">'+esc(re.nome)+'</div>'
-      +calcAgendaHtml(re.inicio,re.atividades,true)+'</div>';
+    var el=$('_rcard_');if(!el)return;
+    var reunioes=r.reunioes&&r.reunioes.length?r.reunioes:(r.reuniao?[r.reuniao]:[]);
+    if(!reunioes.length)return;
+    // Guardar todas para troca via pill
+    state._reunioesPublicadas=reunioes;
+    _renderReuniaoPublicada(0);
   },function(){});
+}
+
+function _renderReuniaoPublicada(idx){
+  var el=$('_rcard_');if(!el)return;
+  var reunioes=state._reunioesPublicadas||[];
+  if(!reunioes.length)return;
+  var re=reunioes[idx]||reunioes[0];
+  // Pills de seleção (só se houver mais de uma)
+  var pillsHtml='';
+  if(reunioes.length>1){
+    pillsHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
+    reunioes.forEach(function(rv,i){
+      var on=i===idx;
+      pillsHtml+='<button onclick="_renderReuniaoPublicada('+i+')" style="background:'+(on?'#4ade80':'#1a1a1a')+';color:'+(on?'#000':'#aaa')+';border:1px solid '+(on?'#4ade80':'#333')+';border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">'+esc(rv.nome)+'</button>';
+    });
+    pillsHtml+='</div>';
+  }
+  el.innerHTML=pillsHtml
+    +'<div style="background:#0d1f12;border:1px solid #4ade80;border-radius:14px;padding:14px;margin-bottom:14px">'
+    +'<div style="font-size:11px;color:#4ade80;font-weight:700;margin-bottom:4px">📋 REUNIÃO — '+esc(re.tipo)+' · '+re.inicio+' → '+re.fim+'</div>'
+    +'<div style="font-weight:800;font-size:15px;margin-bottom:8px">'+esc(re.nome)+'</div>'
+    +calcAgendaHtml(re.inicio,re.atividades,true)+'</div>';
 }
 
 // Settings helpers
@@ -1625,13 +1650,57 @@ function confirmarPublicacao(id,btn){
   var dateEl=document.getElementById('_pubDate_');
   var data=dateEl?dateEl.value:hoje();
   btn.parentNode.parentNode.parentNode.remove();
-  callAPI('publishReuniao',{reuniaoId:id,dataPublicacao:data},function(){
-    // Atualizar local
-    var r=(state._reunioes||[]).find(function(x){return String(x.id)===String(id);});
-    if(r){r.publicadaData=data;r.publicada=true;
-      var p=data.split('-');r.publicadaFmt=p[2]+'/'+p[1]+'/'+p[0];}
-    renderPlanejar();
+  callAPI('publishReuniao',{reuniaoId:id,dataPublicacao:data},function(r){
+    if(r.conflito){
+      _modalConflito(id,data,r.nomeExistente);
+      return;
+    }
+    _finalizarPublicacao(id,data);
   },function(e){alert('Erro: '+(e.message||e));});
+}
+
+function _modalConflito(id,data,nomeExistente){
+  var p=data.split('-');
+  var dataFmt=p[2]+'/'+p[1]+'/'+p[0];
+  var ov=document.createElement('div');
+  ov.id='_conflitoOv_';
+  ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var card=document.createElement('div');
+  card.style.cssText='background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML='<div style="font-size:16px;font-weight:700;margin-bottom:8px">⚠️ Conflito de data</div>'
+    +'<div style="font-size:14px;color:#aaa;margin-bottom:20px">Já existe a reunião <strong style="color:#fff">'+esc(nomeExistente)+'</strong> publicada em '+dataFmt+'. O que deseja fazer?</div>'
+    +'<div id="_conflitoBtns_" style="display:flex;flex-direction:column;gap:10px"></div>';
+  var btns=card.querySelector('#_conflitoBtns_');
+  var bSub=document.createElement('button');
+  bSub.textContent='Substituir a reunião existente';
+  bSub.style.cssText='background:#e55;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer';
+  bSub.onclick=function(){_resolverConflito(id,data,'substituir');};
+  var bAcr=document.createElement('button');
+  bAcr.textContent='Acrescentar (duas reuniões no dia)';
+  bAcr.style.cssText='background:#FFC400;color:#000;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer';
+  bAcr.onclick=function(){_resolverConflito(id,data,'acrescentar');};
+  var bCan=document.createElement('button');
+  bCan.textContent='Cancelar';
+  bCan.style.cssText='background:none;border:1px solid #333;color:#888;border-radius:10px;padding:13px;font-size:14px;cursor:pointer';
+  bCan.onclick=function(){var o=document.getElementById('_conflitoOv_');if(o)o.remove();};
+  btns.appendChild(bSub);btns.appendChild(bAcr);btns.appendChild(bCan);
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+}
+
+function _resolverConflito(id,data,modo){
+  var ov=document.getElementById('_conflitoOv_');if(ov)ov.remove();
+  callAPI('publishReuniao',{reuniaoId:id,dataPublicacao:data,modo:modo},function(){
+    _finalizarPublicacao(id,data);
+  },function(e){alert('Erro: '+(e.message||e));});
+}
+
+function _finalizarPublicacao(id,data){
+  var r=(state._reunioes||[]).find(function(x){return String(x.id)===String(id);});
+  if(r){r.publicadaData=data;r.publicada=true;
+    var p=data.split('-');r.publicadaFmt=p[2]+'/'+p[1]+'/'+p[0];}
+  renderPlanejar();
+  mostrarToast('Reunião publicada ✓');
 }
 
 function renderReuniaoAtiva(){
@@ -1675,7 +1744,21 @@ function renderReuniaoAtiva(){
       +'<input id="_amin_'+i+'" type="number" value="'+(a.min||0)+'" min="0" oninput="state._reuniaoAtiva.atividades['+i+'].min=parseInt(this.value)||0;updateTimebar()" style="width:52px;background:#0a0a0a;border:1px solid #333;color:#FFC400;border-radius:6px;padding:5px;text-align:center;font-size:14px;font-weight:800">'
       +'<span style="color:#888;font-size:12px">min</span>'
       +'<button onclick="removerAtiv('+i+')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:16px;padding:2px 6px;margin-left:2px">❌</button>'
-      +'</div></div>';
+      +'</div>'
+      +(a._provaDetalhe
+        ?'<div>'
+          +'<button onclick="_toggleProvaDetalhe(this)" style="background:none;border:none;color:#555;font-size:12px;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px">'
+          +'<span class="_arrowDet">▶</span> Ver detalhes da prova</button>'
+          +'<div class="_provaDetPanel" style="display:none;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px;margin-top:4px">'
+          +(a._provaDetalhe.categoria?'<div style="font-size:11px;color:#FFC400;margin-bottom:4px">'+esc(a._provaDetalhe.categoria)+'</div>':'')
+          +(a._provaDetalhe.materiais?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Materiais:</strong> '+esc(a._provaDetalhe.materiais)+'</div>':'')
+          +(a._provaDetalhe.qtd?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Participantes:</strong> '+esc(String(a._provaDetalhe.qtd))+'</div>':'')
+          +(a._provaDetalhe.pontos?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Pontuação:</strong> '+esc(String(a._provaDetalhe.pontos))+'</div>':'')
+          +(a._provaDetalhe.descricao?'<div class="ql-content" style="margin-top:6px">'+a._provaDetalhe.descricao+'</div>':'')
+          +'</div>'
+          +'</div>'
+        :'')
+      +'</div>';
   });
   html+='</div>';
 
@@ -1735,7 +1818,7 @@ function adicionarProvaDoBank(){
       +'<div style="font-size:15px;font-weight:800;color:#FFC400;margin-bottom:12px">💡 Selecionar prova</div>'
       +ps.map(function(p){return'<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer" onclick="selecionarProva('+p.id+','+p.tempoMin+')">'
         +'<div style="font-weight:700">'+esc(p.nome)+'</div>'
-        +'<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?'<span style="color:#FFC400">'+esc(p.categoria)+'</span> · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.substring(0,40)):'')+' </div>'+(p.materiais?'<div style="font-size:11px;color:#555;margin-top:2px">📦 '+esc(p.materiais.substring(0,50))+'</div>':'')
+        +'<div style="font-size:12px;color:#888;margin-top:2px">'+(p.categoria?'<span style="color:#FFC400">'+esc(p.categoria)+'</span> · ':'')+p.tempoMin+'min'+(p.descricao?' · '+esc(p.descricao.replace(/<[^>]+>/g,'').substring(0,60))+(p.descricao.replace(/<[^>]+>/g,'').length>60?'…':''):'')+' </div>'+(p.materiais?'<div style="font-size:11px;color:#555;margin-top:2px">📦 '+esc(p.materiais.substring(0,50))+'</div>':'')
         +'</div>';}).join('')
       +'<button onclick="this.parentNode.parentNode.remove()" style="width:100%;background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:8px">Cancelar</button>'
       +'</div>';
@@ -1749,7 +1832,17 @@ function selecionarProva(id,min){
   var p=(window._provasList||[]).find(function(x){return x.id===id;});
   if(!p)return;
   syncReuniaoState();
-  state._reuniaoAtiva.atividades.push({nome:p.nome,min:p.tempoMin||min||15});
+  state._reuniaoAtiva.atividades.push({
+    nome:p.nome,
+    min:p.tempoMin||min||15,
+    _provaDetalhe:{
+      categoria:p.categoria||'',
+      materiais:p.materiais||'',
+      qtd:p.qtdParticipantes||'',
+      pontos:p.pontuacao||'',
+      descricao:p.descricao||''
+    }
+  });
   renderReuniaoAtiva();
 }
 
@@ -2103,6 +2196,15 @@ function salvarDescAtiv(idx){
   var btn=document.getElementById('_adesc_btn_'+idx);
   if(btn)btn.style.color=html?'#FFC400':'#555';
   mostrarToast('✓ Descrição salva');
+}
+
+function _toggleProvaDetalhe(btn){
+  var panel=btn.parentNode.querySelector('._provaDetPanel');
+  var arrow=btn.querySelector('._arrowDet');
+  if(!panel)return;
+  var open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  if(arrow)arrow.textContent=open?'▶':'▼';
 }
 
 // Ícone de compartilhar (mesmo das Unidades)
