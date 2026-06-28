@@ -692,7 +692,8 @@ function header(){
       +'<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
       +'<button class="pill'+(state.view==='esp_tab'?' on':'')+'" onclick="loadEspecialidadesTab()" style="white-space:nowrap">⭐ Especialidades</button>'
-      +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()" style="white-space:nowrap">🏆 Ranking</button>';
+      +'<button class="pill'+(state.view==='ranking'?' on':'')+'" onclick="loadRanking()" style="white-space:nowrap">🏆 Ranking</button>'
+      +'<button class="pill'+(state.view==='financeiro'?' on':'')+'" onclick="loadFinanceiro()" style="white-space:nowrap">💰 Financeiro</button>';
   } else {
     extra='<button class="pill'+(state.view==='reuniao'?' on':'')+'" onclick="loadReuniao()" style="white-space:nowrap">📋 Reunião</button>'
       +'<button class="pill'+(state.view==='especialidades'?' on':'')+'" onclick="loadEspecialidades()" style="white-space:nowrap">📓 Classes</button>'
@@ -1455,10 +1456,16 @@ function loadReuniao(){
 function renderReuniaoShell(){
   var isAdmin=CTX&&CTX.role==='admin';
   var html=header();
+  var provasAbaLiberada=CTX&&CTX.provasAbaLiberada!==false;
   if(isAdmin){
     html+='<div style="display:flex;gap:6px;margin-bottom:14px">'
     +'<button class="pill'+(state.reuniaoTab==="agenda"?" on":"")+'" onclick="reuniaoTab(\'agenda\')">📅 Agenda</button>'
     +'<button class="pill'+(state.reuniaoTab==="planejar"?" on":"")+'" onclick="reuniaoTab(\'planejar\')">✏️ Planejar</button>'
+    +'<button class="pill'+(state.reuniaoTab==="provas"?" on":"")+'" onclick="reuniaoTab(\'provas\')">💡 Provas</button>'
+    +'</div>';
+  } else if(provasAbaLiberada){
+    html+='<div style="display:flex;gap:6px;margin-bottom:14px">'
+    +'<button class="pill'+(state.reuniaoTab==="agenda"?" on":"")+'" onclick="reuniaoTab(\'agenda\')">📅 Agenda</button>'
     +'<button class="pill'+(state.reuniaoTab==="provas"?" on":"")+'" onclick="reuniaoTab(\'provas\')">💡 Provas</button>'
     +'</div>';
   } else {
@@ -1895,7 +1902,16 @@ function renderProvas(){
   var body=document.getElementById('reuniaoBody');if(!body)return;
   var isAdmin=CTX&&CTX.role==='admin';
 
-  var html='<button onclick="abrirModalProva(null)" style="width:100%;background:#141414;border:1px dashed #FFC400;color:#FFC400;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px">+ Nova Prova</button>';
+  var provasAbaLib=CTX&&CTX.provasAbaLiberada!==false;
+  var toggleAbaBtn=isAdmin
+    ?'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+      +'<span style="font-size:12px;color:#888">Visibilidade da aba para conselheiros:</span>'
+      +'<button onclick="_toggleAbaProvas(this)" '
+        +'style="background:'+(provasAbaLib?'#4ade80':'#e55')+';color:#000;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">'
+        +(provasAbaLib?'🔓 Liberada':'🔒 Bloqueada')+'</button>'
+      +'</div>'
+    :'';
+  var html=toggleAbaBtn+(isAdmin?'<button onclick="abrirModalProva(null)" style="width:100%;background:#141414;border:1px dashed #FFC400;color:#FFC400;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px">+ Nova Prova</button>':'');
 
   if(!ps.length){
     html+='<div style="color:#555;text-align:center;padding:30px">Nenhuma prova cadastrada ainda.</div>';
@@ -1914,6 +1930,10 @@ function renderProvas(){
       if(p.qtdParticipantes)html+=' · 👥 '+esc(p.qtdParticipantes);
       html+='</div></div>';
       if(isAdmin){
+        html+='<button onclick="event.stopPropagation();toggleLiberadaProva('+p.id+',this)" '
+          +'title="'+(p.liberada?'Bloquear para não-admins':'Liberar para não-admins')+'" '
+          +'style="background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px">'
+          +(p.liberada?'🔓':'🔒')+'</button>';
         html+='<button onclick="event.stopPropagation();editarProva('+p.id+')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:13px;font-weight:700;padding:4px 8px">✏️</button>';
         html+='<button onclick="event.stopPropagation();duplicarProva('+p.id+')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;padding:4px 6px" title="Duplicar">⧉</button>';
       }
@@ -2207,6 +2227,28 @@ function _toggleProvaDetalhe(btn){
   if(arrow)arrow.textContent=open?'▶':'▼';
 }
 
+function toggleLiberadaProva(id, btn){
+  callAPI('toggleLiberada',{provaId:id},function(r){
+    var novoLib=r.liberada;
+    btn.textContent=novoLib?'🔓':'🔒';
+    btn.title=novoLib?'Bloquear para não-admins':'Liberar para não-admins';
+    // Atualizar estado local
+    var p=(state._provas||[]).find(function(x){return x.id===id;});
+    if(p)p.liberada=novoLib;
+    mostrarToast(novoLib?'Prova liberada ✓':'Prova bloqueada 🔒');
+  },function(e){mostrarToast('Erro: '+(e.message||e));});
+}
+
+function _toggleAbaProvas(btn){
+  callAPI('toggleAbaProvas',{},function(r){
+    var lib=r.provasAbaLiberada;
+    if(CTX)CTX.provasAbaLiberada=lib;
+    btn.textContent=lib?'🔓 Liberada':'🔒 Bloqueada';
+    btn.style.background=lib?'#4ade80':'#e55';
+    mostrarToast(lib?'Aba Provas liberada para conselheiros ✓':'Aba Provas bloqueada para conselheiros 🔒');
+  },function(e){mostrarToast('Erro: '+(e.message||e));});
+}
+
 // Ícone de compartilhar (mesmo das Unidades)
 var _SHARE_SVG='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
 
@@ -2227,17 +2269,24 @@ function calcAgendaHtml(inicio, atividades, soEscrita){
       +'<span style="font-size:14px;color:#fff">'+esc(a.nome)+'</span>'
       +'<span style="font-size:12px;color:#666;margin-left:6px">'+a.min+'min</span>'
       +(descHtml?'<div style="font-size:12px;color:#aaa;margin-top:3px;line-height:1.5">'+descHtml+'</div>':'')
-      +(a._provaDetalhe&&!soEscrita
-        ?'<button onclick="_toggleProvaDetalhe(this)" style="background:none;border:none;color:#555;font-size:12px;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px">'
+      +((!soEscrita)?(function(){
+        var _p=a._provaDetalhe||(window._provasList||[]).find(function(x){return x.nome===a.nome;});
+        if(!_p)return '';
+        var _cat=_p.categoria||'';
+        var _mat=_p.materiais||'';
+        var _qtd=String(_p.qtdParticipantes||_p.qtd||'');
+        var _pts=String(_p.pontuacao||_p.pontos||'');
+        var _desc=_p.descricao||'';
+        return '<button onclick="_toggleProvaDetalhe(this)" style="background:none;border:none;color:#555;font-size:12px;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px">'
           +'<span class="_arrowDet">▶</span> Ver detalhes</button>'
           +'<div class="_provaDetPanel" style="display:none;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px;margin-top:4px">'
-          +(a._provaDetalhe.categoria?'<div style="font-size:11px;color:#FFC400;margin-bottom:4px">'+esc(a._provaDetalhe.categoria)+'</div>':'')
-          +(a._provaDetalhe.materiais?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Materiais:</strong> '+esc(a._provaDetalhe.materiais)+'</div>':'')
-          +(a._provaDetalhe.qtd?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Participantes:</strong> '+esc(String(a._provaDetalhe.qtd))+'</div>':'')
-          +(a._provaDetalhe.pontos?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Pontuação:</strong> '+esc(String(a._provaDetalhe.pontos))+'</div>':'')
-          +(a._provaDetalhe.descricao?'<div class="ql-content" style="margin-top:6px">'+a._provaDetalhe.descricao+'</div>':'')
-          +'</div>'
-        :'')
+          +(_cat?'<div style="font-size:11px;color:#FFC400;margin-bottom:4px">'+esc(_cat)+'</div>':'')
+          +(_mat?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Materiais:</strong> '+esc(_mat)+'</div>':'')
+          +(_qtd?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Participantes:</strong> '+esc(_qtd)+'</div>':'')
+          +(_pts?'<div style="font-size:12px;color:#aaa;margin-bottom:4px"><strong style="color:#888">Pontuação:</strong> '+esc(_pts)+'</div>':'')
+          +(_desc?'<div class="ql-content" style="margin-top:6px">'+_desc+'</div>':'')
+          +'</div>';
+      })():'')
       +'</div></div>';
     cursor+=parseInt(a.min)||0;
   });
@@ -2919,6 +2968,513 @@ function selecionarCatEsp(cat){
   });
   // Filtrar especialidades
   filtrarEspecialidadesCatalogo();
+}
+
+/* ============================================================
+ *  MÓDULO FINANCEIRO — Thomas Edison App
+ *  Telas: Lista de eventos → Detalhe → Desbravador → Relatório
+ * ============================================================ */
+
+var _finState = {
+  eventos: [],
+  eventoAtivo: null,
+  desbravadorAtivo: null
+};
+
+// ── Entrada ──────────────────────────────────────────────────
+
+function loadFinanceiro() {
+  state.view = 'financeiro';
+  var body = $('app');
+  if (!body) return;
+  body.innerHTML = header() + '<div class="load">Carregando…</div>';
+  callAPI('getEventosFinanceiros', {}, function(r) {
+    _finState.eventos = r.eventos || [];
+    renderFinLista();
+  }, function(e) {
+    $('app').innerHTML = header() + '<div class="hint">Erro: ' + esc(e.message||e) + '</div>';
+  });
+}
+
+// ── TELA 1: Lista de eventos ─────────────────────────────────
+
+function renderFinLista() {
+  var isAdmin = CTX && CTX.role === 'admin';
+  var evts = _finState.eventos;
+  var html = header();
+  html += '<div class="topo"><div class="kicker">Clube Thomas Edison</div>'
+    + '<div class="titulo">💰 Financeiro</div></div>'
+    + '<div class="linha"></div>';
+
+  if (isAdmin) {
+    html += '<button onclick="_finNovoEvento()" style="width:100%;background:#141414;border:1px dashed #FFC400;color:#FFC400;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px">+ Novo Evento</button>';
+  }
+
+  if (!evts.length) {
+    html += '<div class="hint">' + (isAdmin
+      ? 'Nenhum evento criado ainda. Toque em + Novo Evento para começar.'
+      : 'Nenhum evento disponível no momento.') + '</div>';
+  } else {
+    evts.forEach(function(evt) {
+      var pct = evt.metaTotal > 0
+        ? Math.round((_finTotalArrecadado(evt.id) / evt.metaTotal) * 100) : 0;
+      html += '<div onclick="_finAbrirEvento(\'' + esc(evt.id) + '\')" style="background:#141414;border:1px solid #222;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer">'
+        + '<div style="font-weight:700;font-size:14px;margin-bottom:2px">' + esc(evt.nome) + '</div>'
+        + '<div style="font-size:11px;color:#666;margin-bottom:10px">'
+        + (evt.dataEvento ? evt.dataEvento + ' · ' : '')
+        + 'Meta: R$ ' + _finFmt(evt.metaTotal) + '</div>'
+        + '<div style="background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;margin-bottom:4px">'
+        + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:10px;color:#666">'
+        + '<span>R$ ' + _finFmt(_finTotalArrecadado(evt.id)) + ' arrecadados</span>'
+        + '<span style="color:' + _finCor(pct) + ';font-weight:700">' + pct + '%</span>'
+        + '</div></div>';
+    });
+  }
+
+  $('app').innerHTML = html;
+}
+
+// Cache simplificado de totais (será preenchido ao abrir evento)
+var _finTotaisCache = {};
+function _finTotalArrecadado(id) { return _finTotaisCache[id] || 0; }
+function _finCor(pct) { return pct >= 100 ? '#4ade80' : pct >= 50 ? '#FFC400' : '#e55'; }
+function _finFmt(v) {
+  return Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ── TELA 2: Detalhe do evento ────────────────────────────────
+
+function _finAbrirEvento(id) {
+  var body = $('app');
+  body.innerHTML = header() + '<div class="load">Carregando…</div>';
+  callAPI('getEventoFinanceiroDetalhe', {eventoId: id}, function(r) {
+    _finState.eventoAtivo = r;
+    _finTotaisCache[id] = r.totalArrecadado || 0;
+    renderFinEvento();
+  }, function(e) { mostrarToast('Erro: ' + (e.message||e)); });
+}
+
+function renderFinEvento() {
+  var r = _finState.eventoAtivo;
+  if (!r) return;
+  var evt = r.evento;
+  var partic = r.participantes || [];
+  var isAdmin = CTX && CTX.role === 'admin';
+  var pct = r.pct || 0;
+
+  var html = header();
+  html += '<button onclick="renderFinLista()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Financeiro</button>';
+  html += '<div style="font-size:16px;font-weight:900;margin-bottom:2px">' + esc(evt.nome) + '</div>';
+  if (evt.dataEvento) html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(evt.dataEvento) + '</div>';
+
+  // Cards de meta
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+  html += _finMetaCard('R$ ' + _finFmt(evt.metaTotal), 'Meta total');
+  html += _finMetaCard('R$ ' + _finFmt(evt.metaIndiv), 'Por cabeça');
+  html += _finMetaCard('R$ ' + _finFmt(r.totalArrecadado), 'Arrecadado', '#4ade80');
+  html += _finMetaCard('R$ ' + _finFmt(Math.max(0, evt.metaTotal - r.totalArrecadado)), 'Faltam', '#e55');
+  html += '</div>';
+
+  // Barra geral
+  html += '<div style="background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden;margin-bottom:14px">'
+    + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div>';
+
+  // Botões admin
+  if (isAdmin) {
+    html += '<div style="display:flex;gap:8px;margin-bottom:14px">';
+    html += '<button onclick="_finModalAddParticipante(\'' + esc(evt.id) + '\')" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">+ Participante</button>';
+    html += '<button onclick="_finRelatorio()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">📊 Relatório</button>';
+    html += '<button onclick="_finConfirmDeleteEvento(\'' + esc(evt.id) + '\',\'' + esc(evt.nome) + '\')" style="flex-shrink:0;background:none;border:1px solid #333;color:#666;border-radius:10px;padding:9px 12px;font-size:12px;cursor:pointer">🗑</button>';
+    html += '</div>';
+  }
+
+  // Lista de participantes
+  html += '<div style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">PARTICIPANTES</div>';
+
+  if (!partic.length) {
+    html += '<div class="hint">Nenhum participante adicionado ainda.</div>';
+  } else {
+    partic.forEach(function(p) {
+      var corP = p.status === 'quitado' ? '#4ade80' : p.status === 'parcial' ? '#FFC400' : '#e55';
+      var badgeTxt = p.status === 'quitado' ? 'Quitado' : p.status === 'parcial' ? 'Parcial' : 'Pendente';
+      var rowHtml = '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #141414;cursor:pointer" '
+        + 'onclick="_finAbrirDesbravador(\'' + esc(p.nome) + '\')">'
+        + '<div style="flex:1">'
+        + '<div style="font-size:13px;font-weight:600">' + esc(p.nome) + '</div>'
+        + '<div style="font-size:10px;color:#555">' + esc(p.unidade) + '</div></div>'
+        + '<div style="width:80px">'
+        + '<div style="background:#1a1a1a;border-radius:3px;height:4px;overflow:hidden;margin-bottom:2px">'
+        + '<div style="height:100%;border-radius:3px;background:' + corP + ';width:' + Math.min(p.pct,100) + '%"></div></div>'
+        + '<div style="font-size:10px;color:#666;text-align:right">R$ ' + _finFmt(p.pago) + '</div></div>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:' + corP + '22;color:' + corP + ';border:1px solid ' + corP + '44">' + badgeTxt + '</span>';
+
+      if (isAdmin) {
+        rowHtml += '<button onclick="event.stopPropagation();_finEditarMetaPartic(\'' + esc(evt.id) + '\',\'' + esc(p.nome) + '\',' + p.metaIndiv + ')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:14px;padding:2px 4px" title="Editar meta">✏️</button>';
+        rowHtml += '<button onclick="event.stopPropagation();_finConfirmRemovePartic(\'' + esc(evt.id) + '\',\'' + esc(p.nome) + '\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px 4px" title="Remover">✕</button>';
+      }
+      rowHtml += '</div>';
+      html += rowHtml;
+    });
+  }
+
+  $('app').innerHTML = html;
+}
+
+function _finMetaCard(val, lbl, cor) {
+  return '<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px;text-align:center">'
+    + '<div style="font-size:15px;font-weight:900;color:' + (cor||'#FFC400') + '">' + val + '</div>'
+    + '<div style="font-size:10px;color:#666;margin-top:2px">' + lbl + '</div></div>';
+}
+
+// ── TELA 3: Detalhe do desbravador ───────────────────────────
+
+function _finAbrirDesbravador(nome) {
+  var r = _finState.eventoAtivo;
+  if (!r) return;
+  var partic = (r.participantes||[]).find(function(p){return p.nome===nome;});
+  var pags = (r.pagamentos||[]).filter(function(p){return p.nome===nome;});
+  _finState.desbravadorAtivo = {partic: partic, pags: pags};
+  renderFinDesbravador();
+}
+
+function renderFinDesbravador() {
+  var d = _finState.desbravadorAtivo;
+  var r = _finState.eventoAtivo;
+  if (!d||!r) return;
+  var p = d.partic;
+  var pags = d.pags;
+  var isAdmin = CTX && CTX.role === 'admin';
+  var corP = p.status==='quitado'?'#4ade80':p.status==='parcial'?'#FFC400':'#e55';
+
+  var html = header();
+  html += '<button onclick="renderFinEvento()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← ' + esc(r.evento.nome) + '</button>';
+  html += '<div style="font-size:16px;font-weight:900;margin-bottom:2px">' + esc(p.nome) + '</div>';
+  html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(p.unidade) + '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
+  html += _finMetaCard('R$ ' + _finFmt(p.pago), 'Pago', corP);
+  html += _finMetaCard('R$ ' + _finFmt(p.metaIndiv), 'Meta');
+  html += _finMetaCard('R$ ' + _finFmt(Math.max(0,p.metaIndiv-p.pago)), 'Saldo', p.saldo>0?'#e55':'#4ade80');
+  html += '</div>';
+
+  html += '<div style="background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;margin-bottom:14px">'
+    + '<div style="height:100%;border-radius:4px;background:' + corP + ';width:' + Math.min(p.pct,100) + '%"></div></div>';
+
+  html += '<div style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">HISTÓRICO DE PAGAMENTOS</div>';
+
+  if (!pags.length) {
+    html += '<div class="hint">Nenhum pagamento registrado ainda.</div>';
+  } else {
+    pags.forEach(function(pg) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px">'
+        + '<div><div style="font-size:11px;color:#666">' + esc(pg.data) + '</div>'
+        + (pg.obs?'<div style="font-size:10px;color:#555;margin-top:2px">'+esc(pg.obs)+'</div>':'')
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<span style="font-size:14px;font-weight:700;color:#4ade80">R$ ' + _finFmt(pg.valor) + '</span>'
+        + (isAdmin?'<button onclick="_finConfirmDeletePag(\''+esc(pg.id)+'\',\''+esc(p.nome)+'\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px">✕</button>':'')
+        + '</div></div>';
+    });
+  }
+
+  if (isAdmin) {
+    html += '<button onclick="_finModalAddPagamento()" style="width:100%;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">+ Registrar pagamento</button>';
+  }
+
+  $('app').innerHTML = html;
+}
+
+// ── TELA 4: Relatório ────────────────────────────────────────
+
+function _finRelatorio() {
+  var r = _finState.eventoAtivo;
+  if (!r) return;
+  var evt = r.evento;
+  var partic = r.participantes || [];
+  var pct = r.pct || 0;
+
+  var html = header();
+  html += '<button onclick="renderFinEvento()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← ' + esc(evt.nome) + '</button>';
+
+  html += '<div style="background:linear-gradient(135deg,#141414,#1a1200);border:1px solid #FFC40033;border-radius:12px;padding:14px;text-align:center;margin-bottom:12px">'
+    + '<div style="font-size:11px;color:#FFC400;font-weight:700;margin-bottom:4px">' + esc(evt.nome.toUpperCase()) + '</div>'
+    + '<div style="font-size:22px;font-weight:900">R$ ' + _finFmt(r.totalArrecadado) + '</div>'
+    + '<div style="font-size:11px;color:#888;margin-top:2px">de R$ ' + _finFmt(evt.metaTotal) + ' · ' + pct + '% arrecadado</div>'
+    + '<div style="background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden;margin-top:10px">'
+    + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div></div>';
+
+  // Chips de status
+  var nQuit = partic.filter(function(p){return p.status==='quitado';}).length;
+  var nParc = partic.filter(function(p){return p.status==='parcial';}).length;
+  var nPend = partic.filter(function(p){return p.status==='pendente';}).length;
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
+  if (nQuit) html += '<span style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:20px;background:#4ade8020;color:#4ade80;border:1px solid #4ade8040">✓ ' + nQuit + ' quitados</span>';
+  if (nParc) html += '<span style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:20px;background:#FFC40020;color:#FFC400;border:1px solid #FFC40040">⏳ ' + nParc + ' parciais</span>';
+  if (nPend) html += '<span style="font-size:10px;font-weight:700;padding:4px 8px;border-radius:20px;background:#e5553320;color:#e55;border:1px solid #e5553340">⚠ ' + nPend + ' pendentes</span>';
+  html += '</div>';
+
+  html += '<div style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">PROGRESSO POR DESBRAVADOR</div>';
+  partic.slice().sort(function(a,b){return b.pago-a.pago;}).forEach(function(p) {
+    var cor = _finCor(p.pct);
+    html += '<div style="margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
+      + '<span style="color:#ccc">' + esc(p.nome) + '</span>'
+      + '<span style="color:#888;font-size:10px">R$ ' + _finFmt(p.pago) + ' / R$ ' + _finFmt(p.metaIndiv) + '</span></div>'
+      + '<div style="background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden">'
+      + '<div style="height:100%;border-radius:4px;background:' + cor + ';width:' + Math.min(p.pct,100) + '%"></div></div></div>';
+  });
+
+  html += '<button onclick="_finCompartilharRelatorio()" style="width:100%;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px">📤 Compartilhar relatório</button>';
+
+  $('app').innerHTML = html;
+}
+
+function _finCompartilharRelatorio() {
+  var r = _finState.eventoAtivo;
+  if (!r) return;
+  var evt = r.evento;
+  var partic = r.participantes || [];
+  var txt = '💰 *' + evt.nome.toUpperCase() + '*\n';
+  txt += '📊 ' + r.pct + '% arrecadado — R$ ' + _finFmt(r.totalArrecadado) + ' de R$ ' + _finFmt(evt.metaTotal) + '\n\n';
+  partic.forEach(function(p) {
+    var icon = p.status==='quitado'?'✅':p.status==='parcial'?'⏳':'❌';
+    txt += icon + ' ' + p.nome + ' — R$ ' + _finFmt(p.pago);
+    if (p.status!=='quitado') txt += ' / R$ ' + _finFmt(p.metaIndiv);
+    txt += '\n';
+  });
+  txt += '\n_Clube Thomas Edison_';
+  if (navigator.share) { navigator.share({text: txt}); }
+  else { navigator.clipboard&&navigator.clipboard.writeText(txt); mostrarToast('Relatório copiado!'); }
+}
+
+// ── MODAIS ───────────────────────────────────────────────────
+
+// Modal novo evento
+function _finNovoEvento() {
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Novo Evento</div>'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nome *</label>'
+    + '<input id="_finNome_" placeholder="Ex: Campori 2026" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data do evento</label>'
+    + '<input id="_finData_" type="date" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta total (R$) *</label>'
+    + '<input id="_finMeta_" type="number" placeholder="18000" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta por cabeça (R$)</label>'
+    + '<input id="_finMetaI_" type="number" placeholder="1500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="_finSalvarEvento()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Criar →</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+}
+
+function _finSalvarEvento() {
+  var nome = ($('_finNome_')||{}).value||'';
+  var meta = Number(($('_finMeta_')||{}).value||0);
+  var metaI = Number(($('_finMetaI_')||{}).value||0);
+  var data = ($('_finData_')||{}).value||'';
+  if (!nome.trim()) { mostrarToast('Informe o nome do evento.'); return; }
+  if (!meta) { mostrarToast('Informe a meta total.'); return; }
+  _finFecharOv();
+  callAPI('createEventoFinanceiro', {dados:{nome:nome.trim(),dataEvento:data,metaTotal:meta,metaIndiv:metaI}},
+    function(r) { mostrarToast('Evento criado ✓'); loadFinanceiro(); },
+    function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// Modal adicionar participante
+function _finModalAddParticipante(eventoId) {
+  var UNITS_FIN = ['Leão','Panda','Tigre','Puma'];
+  var evt = (_finState.eventoAtivo||{}).evento||{};
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  var pillsHtml = UNITS_FIN.map(function(u){
+    return '<button type="button" onclick="_finSelecionarUnidade(\''+u+'\',this,\''+eventoId+'\')" '
+      +'style="background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer">'+u+'</button>';
+  }).join('');
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Participante</div>'
+    + '<div style="font-size:12px;color:#888;margin-bottom:8px">Por unidade:</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + pillsHtml + '</div>'
+    + '<div style="font-size:12px;color:#888;margin-bottom:6px">— ou individualmente —</div>'
+    + '<div id="_finListaInd_" style="max-height:160px;overflow-y:auto;margin-bottom:10px"></div>'
+    + '<input id="_finBuscaNome_" placeholder="Buscar desbravador..." oninput="_finBuscarNome(\''+eventoId+'\')" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:14px">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+  _finBuscarNome(eventoId);
+}
+
+function _finSelecionarUnidade(unidade, btn, eventoId) {
+  btn.style.background = '#FFC400'; btn.style.color = '#000'; btn.style.borderColor = '#FFC400';
+  var evt = (_finState.eventoAtivo||{}).evento||{};
+  callAPI('getMembrosParaFinanceiro', {unidade: unidade}, function(r) {
+    var nomes = (r.membros||[]).map(function(m){return m.nome;});
+    if (!nomes.length) { mostrarToast('Nenhum membro ativo nessa unidade.'); return; }
+    var metaI = evt.metaIndiv || 0;
+    callAPI('addParticipantesEvento', {eventoId: eventoId, nomes: nomes, unidade: unidade, metaIndiv: metaI},
+      function(res) {
+        _finFecharOv();
+        mostrarToast(res.adicionados + ' membro(s) adicionado(s) ✓');
+        _finAbrirEvento(eventoId);
+      }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+    );
+  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
+}
+
+var _finTodosMembros = [];
+function _finBuscarNome(eventoId) {
+  if (!_finTodosMembros.length) {
+    callAPI('getMembrosParaFinanceiro', {}, function(r) {
+      _finTodosMembros = r.membros || [];
+      _finRenderListaInd(eventoId);
+    }, function(){});
+  } else {
+    _finRenderListaInd(eventoId);
+  }
+}
+
+function _finRenderListaInd(eventoId) {
+  var busca = (($('_finBuscaNome_')||{}).value||'').toLowerCase();
+  var lista = document.getElementById('_finListaInd_');
+  if (!lista) return;
+  var evt = (_finState.eventoAtivo||{}).evento||{};
+  var jaPartic = ((_finState.eventoAtivo||{}).participantes||[]).map(function(p){return p.nome;});
+  var filtrados = _finTodosMembros.filter(function(m){
+    return m.nome.toLowerCase().includes(busca) && !jaPartic.includes(m.nome);
+  }).slice(0,8);
+  lista.innerHTML = filtrados.map(function(m){
+    return '<div onclick="_finAddIndividual(\''+esc(m.nome)+'\',\''+esc(m.unidade)+'\',\''+eventoId+'\')" '
+      +'style="padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;margin-bottom:4px;background:#1a1a1a">'
+      +'<span style="font-size:13px">'+esc(m.nome)+'</span>'
+      +'<span style="font-size:11px;color:#666">'+esc(m.unidade)+'</span></div>';
+  }).join('') || '<div style="font-size:12px;color:#555;padding:8px">Nenhum resultado.</div>';
+}
+
+function _finAddIndividual(nome, unidade, eventoId) {
+  var evt = (_finState.eventoAtivo||{}).evento||{};
+  var metaI = evt.metaIndiv || 0;
+  callAPI('addParticipantesEvento', {eventoId: eventoId, nomes: [nome], unidade: unidade, metaIndiv: metaI},
+    function(res) {
+      _finFecharOv();
+      mostrarToast(nome + ' adicionado(a) ✓');
+      _finAbrirEvento(eventoId);
+    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// Modal registrar pagamento
+function _finModalAddPagamento() {
+  var d = _finState.desbravadorAtivo;
+  var r = _finState.eventoAtivo;
+  if (!d||!r) return;
+  var p = d.partic;
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:4px">+ Pagamento</div>'
+    + '<div style="font-size:12px;color:#888;margin-bottom:16px">' + esc(p.nome) + '</div>'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Valor (R$) *</label>'
+    + '<input id="_finPagVal_" type="number" placeholder="500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data *</label>'
+    + '<input id="_finPagData_" type="date" value="' + hoje() + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Observação</label>'
+    + '<input id="_finPagObs_" placeholder="Ex: Primeira parcela" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="_finSalvarPagamento()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Registrar →</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+}
+
+function _finSalvarPagamento() {
+  var d = _finState.desbravadorAtivo;
+  var r = _finState.eventoAtivo;
+  var valor = Number(($('_finPagVal_')||{}).value||0);
+  var data = ($('_finPagData_')||{}).value||hoje();
+  var obs = ($('_finPagObs_')||{}).value||'';
+  if (!valor) { mostrarToast('Informe o valor.'); return; }
+  _finFecharOv();
+  callAPI('addPagamentoFinanceiro',
+    {eventoId: r.evento.id, nome: d.partic.nome, valor: valor, data: data, obs: obs},
+    function() {
+      mostrarToast('Pagamento registrado ✓');
+      _finAbrirEvento(r.evento.id);
+    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// Modal editar meta individual
+function _finEditarMetaPartic(eventoId, nome, metaAtual) {
+  mostrarConfirm('Editar meta de ' + nome,
+    'Nova meta individual (atual: R$ ' + _finFmt(metaAtual) + '):\n\nDigite o novo valor:',
+    function() {
+      var v = prompt('Nova meta individual para ' + nome + ' (R$):', metaAtual);
+      if (v === null) return;
+      var nova = Number(v);
+      if (isNaN(nova) || nova < 0) { mostrarToast('Valor inválido.'); return; }
+      callAPI('editParticipanteMeta', {eventoId: eventoId, nome: nome, novaMeta: nova},
+        function() { mostrarToast('Meta atualizada ✓'); _finAbrirEvento(eventoId); },
+        function(e) { mostrarToast('Erro: '+(e.message||e)); }
+      );
+    }
+  );
+}
+
+// Confirmações de exclusão
+function _finConfirmRemovePartic(eventoId, nome) {
+  mostrarConfirm('Remover ' + nome + '?',
+    'Todos os pagamentos registrados para ' + nome + ' neste evento também serão removidos.',
+    function() {
+      callAPI('removeParticipanteEvento', {eventoId: eventoId, nome: nome},
+        function() { mostrarToast(nome + ' removido(a).'); _finAbrirEvento(eventoId); },
+        function(e) { mostrarToast('Erro: '+(e.message||e)); }
+      );
+    }
+  );
+}
+
+function _finConfirmDeleteEvento(eventoId, nome) {
+  mostrarConfirm('Deletar evento "' + nome + '"?',
+    'Todos os participantes e pagamentos deste evento serão removidos permanentemente.',
+    function() {
+      callAPI('deleteEventoFinanceiro', {eventoId: eventoId},
+        function() { mostrarToast('Evento removido.'); loadFinanceiro(); },
+        function(e) { mostrarToast('Erro: '+(e.message||e)); }
+      );
+    }
+  );
+}
+
+function _finConfirmDeletePag(pagId, nome) {
+  mostrarConfirm('Remover pagamento de ' + nome + '?', 'Essa ação não pode ser desfeita.',
+    function() {
+      var r = _finState.eventoAtivo;
+      callAPI('deletePagamentoFinanceiro', {pagId: pagId},
+        function() { mostrarToast('Pagamento removido.'); _finAbrirEvento(r.evento.id); },
+        function(e) { mostrarToast('Erro: '+(e.message||e)); }
+      );
+    }
+  );
+}
+
+function _finFecharOv() {
+  var o = document.getElementById('_finOv_');
+  if (o) o.remove();
+  _finTodosMembros = [];
 }
 
 </script>
