@@ -2970,6 +2970,26 @@ function selecionarCatEsp(cat){
   filtrarEspecialidadesCatalogo();
 }
 
+
+function _finFmtData(d) {
+  if (!d) return '';
+  var s = String(d).trim();
+  if (!s || s === 'undefined') return '';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s; // já formatada
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    var p = s.split('-'); return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  try {
+    var dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+      var dd = String(dt.getDate()).padStart(2,'0');
+      var mm = String(dt.getMonth()+1).padStart(2,'0');
+      return dd+'/'+mm+'/'+dt.getFullYear();
+    }
+  } catch(e) {}
+  return s;
+}
+
 /* ============================================================
  *  MÓDULO FINANCEIRO — Thomas Edison App
  *  Telas: Lista de eventos → Detalhe → Desbravador → Relatório
@@ -3066,7 +3086,7 @@ function renderFinEvento() {
   var html = header();
   html += '<button onclick="renderFinLista()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Financeiro</button>';
   html += '<div style="font-size:16px;font-weight:900;margin-bottom:2px">' + esc(evt.nome) + '</div>';
-  if (evt.dataEvento) html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(evt.dataEvento) + '</div>';
+  if (evt.dataEvento) html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(_finFmtData(evt.dataEvento)) + '</div>';
 
   // Cards de meta
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
@@ -3081,16 +3101,10 @@ function renderFinEvento() {
     + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div>';
 
   // Botões admin
-  if (isAdmin) {
-    html += '<div style="display:flex;gap:8px;margin-bottom:14px">';
-    html += '<button onclick="_finModalAddParticipante(\'' + esc(evt.id) + '\')" style="flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">+ Participante</button>';
-    html += '<button onclick="_finRelatorio()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">📊 Relatório</button>';
-    html += '<button onclick="_finConfirmDeleteEvento(\'' + esc(evt.id) + '\',\'' + esc(evt.nome) + '\')" style="flex-shrink:0;background:none;border:1px solid #333;color:#666;border-radius:10px;padding:9px 12px;font-size:12px;cursor:pointer">🗑</button>';
-    html += '</div>';
-  }
-
-  // Lista de participantes
-  html += '<div style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">PARTICIPANTES</div>';
+  // Sub-abas: montar via DOM após inserir HTML
+  var finTab = _finState.eventoTab || 'participantes';
+  if (finTab === 'caixa') { _finRenderCaixaInline(evt.id); return; }
+  html += '<div data-fin-list="1" style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">PARTICIPANTES</div>';
 
   if (!partic.length) {
     html += '<div class="hint">Nenhum participante adicionado ainda.</div>';
@@ -3119,6 +3133,7 @@ function renderFinEvento() {
   }
 
   $('app').innerHTML = html;
+  _finRenderEventoDOM(evt, isAdmin, finTab);
 }
 
 function _finMetaCard(val, lbl, cor) {
@@ -3475,6 +3490,304 @@ function _finFecharOv() {
   var o = document.getElementById('_finOv_');
   if (o) o.remove();
   _finTodosMembros = [];
+}
+
+// ── DOM: render sub-abas e botões de admin ───────────────────
+
+function _finSetTab(tab) {
+  _finState.eventoTab = tab;
+  renderFinEvento();
+}
+
+function _finToggleStatus(eventoId) {
+  callAPI('toggleStatusEvento', {eventoId: eventoId}, function(r) {
+    if (_finState.eventoAtivo && _finState.eventoAtivo.evento) {
+      _finState.eventoAtivo.evento.status = r.status;
+    }
+    mostrarToast(r.status === 'encerrado' ? '🔒 Evento encerrado' : '🟢 Evento reaberto');
+    renderFinEvento();
+  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
+}
+
+function _finRenderEventoDOM(evt, isAdmin, finTab) {
+  var app = $('app');
+  if (!app) return;
+
+  // Sub-tabs
+  var tabRow = document.createElement('div');
+  tabRow.style.cssText = 'display:flex;gap:6px;margin-bottom:14px';
+  ['participantes','caixa'].forEach(function(t) {
+    var b = document.createElement('button');
+    b.className = 'pill' + (finTab === t ? ' on' : '');
+    b.textContent = t === 'participantes' ? '👥 Participantes' : '💵 Caixa';
+    b.onclick = function() { _finSetTab(t); };
+    tabRow.appendChild(b);
+  });
+
+  // Inserir antes da lista (depois dos meta-cards e barra)
+  var partHeader = app.querySelector('[data-fin-list]');
+  if (partHeader) {
+    app.insertBefore(tabRow, partHeader);
+  } else {
+    // fallback: inserir como primeiro filho após os meta-cards
+    var firstDiv = app.children[0];
+    app.insertBefore(tabRow, firstDiv);
+  }
+
+  // Botões de admin
+  if (isAdmin) {
+    var adminRow = document.createElement('div');
+    adminRow.style.cssText = 'display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap';
+
+    if (finTab === 'participantes') {
+      var bAdd = document.createElement('button');
+      bAdd.textContent = '+ Participante';
+      bAdd.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer';
+      bAdd.onclick = function() { _finModalAddParticipante(evt.id); };
+      adminRow.appendChild(bAdd);
+    }
+
+    if (finTab === 'caixa') {
+      var bLanc = document.createElement('button');
+      bLanc.textContent = '+ Lançamento';
+      bLanc.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer';
+      bLanc.onclick = function() { _finModalAddLancamento(evt.id); };
+      adminRow.appendChild(bLanc);
+    }
+
+    var bRel = document.createElement('button');
+    bRel.textContent = '📊';
+    bRel.title = 'Relatório';
+    bRel.style.cssText = 'background:#FFC400;color:#000;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer';
+    bRel.onclick = function() { _finRelatorio(); };
+    adminRow.appendChild(bRel);
+
+    var bEdit = document.createElement('button');
+    bEdit.textContent = '✏️';
+    bEdit.title = 'Editar evento';
+    bEdit.style.cssText = 'background:none;border:1px solid #333;color:#FFC400;border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
+    bEdit.onclick = function() { _finModalEditarEvento(); };
+    adminRow.appendChild(bEdit);
+
+    var isEncerrado = evt.status === 'encerrado';
+    var bStatus = document.createElement('button');
+    bStatus.textContent = isEncerrado ? '🔒' : '🟢';
+    bStatus.title = isEncerrado ? 'Reabrir evento' : 'Encerrar evento';
+    bStatus.style.cssText = 'background:none;border:1px solid #333;color:'+(isEncerrado?'#e55':'#4ade80')+';border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
+    bStatus.onclick = function() { _finToggleStatus(evt.id); };
+    adminRow.appendChild(bStatus);
+
+    var bDel = document.createElement('button');
+    bDel.textContent = '🗑';
+    bDel.title = 'Deletar evento';
+    bDel.style.cssText = 'background:none;border:1px solid #333;color:#666;border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
+    bDel.onclick = function() { _finConfirmDeleteEvento(evt.id, evt.nome); };
+    adminRow.appendChild(bDel);
+
+    if (partHeader) app.insertBefore(adminRow, partHeader);
+    else app.appendChild(adminRow);
+  }
+}
+
+// ── Modal editar evento ───────────────────────────────────────
+
+function _finModalEditarEvento() {
+  var r = _finState.eventoAtivo;
+  if (!r) return;
+  var evt = r.evento;
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar Evento</div>'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nome</label>'
+    + '<input id="_finEditNome_" value="' + esc(evt.nome) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data do evento</label>'
+    + '<input id="_finEditData_" type="date" value="' + (evt.dataEvento ? _finDataParaInput(evt.dataEvento) : '') + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta total (R$)</label>'
+    + '<input id="_finEditMeta_" type="number" value="' + (evt.metaTotal||0) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta por cabeça (R$)</label>'
+    + '<input id="_finEditMetaI_" type="number" value="' + (evt.metaIndiv||0) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="_finSalvarEdicaoEvento(\'' + esc(evt.id) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar →</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+}
+
+function _finDataParaInput(d) {
+  if (!d) return '';
+  var s = String(d).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    var p = s.split('/'); return p[2]+'-'+p[1]+'-'+p[0];
+  }
+  try { var dt=new Date(s); if(!isNaN(dt.getTime())) return dt.toISOString().substring(0,10); } catch(e){}
+  return '';
+}
+
+function _finSalvarEdicaoEvento(eventoId) {
+  var nome = ($('_finEditNome_')||{}).value||'';
+  var data = ($('_finEditData_')||{}).value||'';
+  var meta = Number(($('_finEditMeta_')||{}).value||0);
+  var metaI = Number(($('_finEditMetaI_')||{}).value||0);
+  if (!nome.trim()) { mostrarToast('Nome não pode ser vazio.'); return; }
+  _finFecharOv();
+  callAPI('editEventoFinanceiro', {eventoId: eventoId, dados:{nome:nome.trim(),dataEvento:data,metaTotal:meta,metaIndiv:metaI}},
+    function() {
+      mostrarToast('Evento atualizado ✓');
+      _finAbrirEvento(eventoId);
+    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// ── Modal editar meta individual (substituindo prompt) ────────
+function _finEditarMetaPartic(eventoId, nome, metaAtual) {
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:4px">✏️ Meta individual</div>'
+    + '<div style="font-size:12px;color:#888;margin-bottom:16px">' + esc(nome) + '</div>'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nova meta (R$)</label>'
+    + '<input id="_finMetaIndv_" type="number" value="' + metaAtual + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="_finSalvarMetaIndv(\'' + esc(eventoId) + '\',\'' + esc(nome) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar →</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+}
+
+function _finSalvarMetaIndv(eventoId, nome) {
+  var nova = Number(($('_finMetaIndv_')||{}).value||0);
+  if (isNaN(nova) || nova < 0) { mostrarToast('Valor inválido.'); return; }
+  _finFecharOv();
+  callAPI('editParticipanteMeta', {eventoId:eventoId, nome:nome, novaMeta:nova},
+    function() { mostrarToast('Meta atualizada ✓'); _finAbrirEvento(eventoId); },
+    function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// ── Aba Caixa ─────────────────────────────────────────────────
+
+function _finRenderCaixaInline(eventoId) {
+  // Renderizar a aba caixa — já injeta no #app mantendo o header existente
+  callAPI('getCaixaEvento', {eventoId: eventoId}, function(r) {
+    var isAdmin = CTX && CTX.role === 'admin';
+    var html = '<div data-fin-list="1">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">'
+      + _finMetaCard('R$ '+_finFmt(r.totalEntradas),'Entradas','#4ade80')
+      + _finMetaCard('R$ '+_finFmt(r.totalSaidas),'Saídas','#e55')
+      + _finMetaCard('R$ '+_finFmt(Math.abs(r.saldo)),'Saldo',r.saldo>=0?'#4ade80':'#e55')
+      + '</div>';
+
+    if (!r.lancamentos.length) {
+      html += '<div class="hint">Nenhum lançamento ainda.</div>';
+    } else {
+      r.lancamentos.forEach(function(l) {
+        var entrada = l.tipo === 'entrada';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px">'
+          + '<div>'
+          + '<div style="font-size:13px;font-weight:600">' + esc(l.descricao) + '</div>'
+          + '<div style="font-size:10px;color:#666;margin-top:2px">'
+          + (l.categoria?'<span style="color:#FFC400;margin-right:6px">'+esc(l.categoria)+'</span>':'')
+          + esc(l.data) + '</div></div>'
+          + '<div style="display:flex;align-items:center;gap:8px">'
+          + '<span style="font-size:14px;font-weight:700;color:'+(entrada?'#4ade80':'#e55')+'">'
+          + (entrada?'+':'-') + ' R$ '+_finFmt(l.valor)+'</span>'
+          + (isAdmin?'<button onclick="_finConfirmDeleteLanc(\''+esc(l.id)+'\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px">✕</button>':'')
+          + '</div></div>';
+      });
+    }
+    html += '</div>';
+
+    // Injetar no app após o conteúdo já renderizado (sub-abas + admin buttons)
+    var existing = document.querySelector('[data-fin-list]');
+    if (existing) {
+      existing.outerHTML = html;
+    } else {
+      var app = $('app');
+      if (app) app.insertAdjacentHTML('beforeend', html);
+    }
+  }, function(e) { mostrarToast('Erro ao carregar caixa: '+(e.message||e)); });
+}
+
+function _finModalAddLancamento(eventoId) {
+  var r = _finState.eventoAtivo;
+  var eid = eventoId || (r && r.evento ? r.evento.id : null);
+  if (!eid) return;
+  var CATS = ['Doação','Campanha','Inscrição','Local','Transporte','Alimentação','Material','Outros'];
+  var ov = document.createElement('div');
+  ov.id = '_finOv_';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
+  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Lançamento</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
+    + '<button id="_finTipoE_" onclick="_finSelecionarTipo(this)" data-tipo="entrada" style="flex:1;background:#4ade80;color:#000;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">🟢 Entrada</button>'
+    + '<button id="_finTipoS_" onclick="_finSelecionarTipo(this)" data-tipo="saida" style="flex:1;background:#1a1a1a;color:#aaa;border:1px solid #333;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">🔴 Saída</button>'
+    + '</div>'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Descrição *</label>'
+    + '<input id="_finLancDesc_" placeholder="Ex: Doação família Silva" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Valor (R$) *</label>'
+    + '<input id="_finLancVal_" type="number" placeholder="500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data</label>'
+    + '<input id="_finLancData_" type="date" value="'+hoje()+'" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
+    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Categoria</label>'
+    + '<select id="_finLancCat_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
+    + '<option value="">Sem categoria</option>'
+    + CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('')
+    + '</select>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="_finSalvarLancamento(\'' + esc(eid) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Adicionar →</button>'
+    + '</div>';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+  window._finLancTipo = 'entrada';
+}
+
+function _finSelecionarTipo(btn) {
+  var tipo = btn ? (btn.dataset.tipo||'entrada') : 'entrada';
+  window._finLancTipo = tipo;
+  var be = document.getElementById('_finTipoE_');
+  var bs = document.getElementById('_finTipoS_');
+  if (be) { be.style.background = tipo==='entrada'?'#4ade80':'#1a1a1a'; be.style.color = tipo==='entrada'?'#000':'#aaa'; be.style.border = tipo==='entrada'?'none':'1px solid #333'; }
+  if (bs) { bs.style.background = tipo==='saida'?'#e55':'#1a1a1a'; bs.style.color = tipo==='saida'?'#fff':'#aaa'; bs.style.border = tipo==='saida'?'none':'1px solid #333'; }
+}
+
+function _finSalvarLancamento(eventoId) {
+  var desc = ($('_finLancDesc_')||{}).value||'';
+  var val = Number(($('_finLancVal_')||{}).value||0);
+  var data = ($('_finLancData_')||{}).value||hoje();
+  var cat = ($('_finLancCat_')||{}).value||'';
+  var tipo = window._finLancTipo||'entrada';
+  if (!desc.trim()) { mostrarToast('Informe a descrição.'); return; }
+  if (!val) { mostrarToast('Informe o valor.'); return; }
+  _finFecharOv();
+  callAPI('addLancamentoCaixa', {eventoId:eventoId, dados:{tipo:tipo,descricao:desc.trim(),valor:val,data:data,categoria:cat}},
+    function() {
+      mostrarToast('Lançamento adicionado ✓');
+      _finState.eventoTab = 'caixa';
+      _finAbrirEvento(eventoId);
+    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+function _finConfirmDeleteLanc(lancId) {
+  var r = _finState.eventoAtivo;
+  mostrarConfirm('Remover lançamento?', 'Essa ação não pode ser desfeita.',
+    function() {
+      callAPI('deleteLancamentoCaixa', {lancId:lancId},
+        function() { mostrarToast('Lançamento removido.'); _finAbrirEvento(r.evento.id); },
+        function(e) { mostrarToast('Erro: '+(e.message||e)); }
+      );
+    }
+  );
 }
 
 </script>
