@@ -818,6 +818,7 @@ function render(){
   if(state.view==='reuniao'){loadReuniao();return;}
   if(state.view==='especialidades'){loadEspecialidades();return;}
   if(state.view==='esp_tab'){loadEspecialidadesTab();return;}
+  if(state.view==='financeiro'){renderFinRoute();return;}
   var banner='';
   if(state.unit&&LOGOS&&LOGOS[state.unit]){
     banner='<div style="display:flex;align-items:center;gap:12px;background:#141414;border:1px solid #222;border-radius:14px;padding:12px 16px;margin-bottom:12px">'
@@ -2990,21 +2991,68 @@ function _finFmtData(d) {
   return s;
 }
 
+
 /* ============================================================
  *  MÓDULO FINANCEIRO — Thomas Edison App
- *  Telas: Lista de eventos → Detalhe → Desbravador → Relatório
+ *  Telas: Lista de eventos → Evento (Entradas/Saídas) → Desbravador → Relatório
  * ============================================================ */
 
 var _finState = {
   eventos: [],
+  screen: 'lista',       // lista | evento | desbravador | relatorio
   eventoAtivo: null,
-  desbravadorAtivo: null
+  eventoTab: 'entradas', // entradas | saidas
+  desbravadorAtivo: null,
+  filtro: { busca: '', modo: 'alfabetica' } // alfabetica | unidade
 };
 
-// ── Entrada ──────────────────────────────────────────────────
+var _finTotaisCache = {};
+
+function _finFmt(v) {
+  return Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function _finCor(pct) { return pct >= 100 ? '#4ade80' : pct >= 50 ? '#FFC400' : '#e55'; }
+function _finFmtData(d) {
+  if (!d) return '';
+  var s = String(d).trim();
+  if (!s || s === 'undefined') return '';
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  try {
+    var dt = new Date(s);
+    if (!isNaN(dt.getTime())) {
+      var dd=String(dt.getDate()).padStart(2,'0'), mm=String(dt.getMonth()+1).padStart(2,'0');
+      return dd+'/'+mm+'/'+dt.getFullYear();
+    }
+  } catch(e) {}
+  return s;
+}
+function _finDataParaInput(d) {
+  if (!d) return '';
+  var s = String(d).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) { var p=s.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; }
+  try { var dt=new Date(s); if(!isNaN(dt.getTime())) return dt.toISOString().substring(0,10); } catch(e){}
+  return '';
+}
+function _finFecharOv() {
+  var o = document.getElementById('_finOv_');
+  if (o) o.remove();
+  window._finSelecionados = {};
+}
+function _finMetaCard(val, lbl, cor) {
+  var d = document.createElement('div');
+  d.style.cssText = 'background:#141414;border:1px solid #222;border-radius:10px;padding:10px;text-align:center';
+  d.innerHTML = '<div style="font-size:15px;font-weight:900;color:'+(cor||'#FFC400')+'">'+val+'</div>'
+    + '<div style="font-size:10px;color:#666;margin-top:2px">'+lbl+'</div>';
+  return d;
+}
+
+// ── Entrada / Roteamento ──────────────────────────────────────
 
 function loadFinanceiro() {
   state.view = 'financeiro';
+  _finState.screen = 'lista';
   var body = $('app');
   if (!body) return;
   body.innerHTML = header() + '<div class="load">Carregando…</div>';
@@ -3016,9 +3064,21 @@ function loadFinanceiro() {
   });
 }
 
+// Chamada pelo render() principal quando state.view==='financeiro'
+// Garante que a sub-tela correta seja mantida (resolve bug de loop)
+function renderFinRoute() {
+  var scr = _finState.screen || 'lista';
+  if (scr === 'evento' && _finState.eventoAtivo) { renderFinEvento(); return; }
+  if (scr === 'desbravador' && _finState.desbravadorAtivo) { renderFinDesbravador(); return; }
+  if (scr === 'relatorio' && _finState.eventoAtivo) { renderFinRelatorio(); return; }
+  if (_finState.eventos && _finState.eventos.length !== undefined) { renderFinLista(); return; }
+  loadFinanceiro();
+}
+
 // ── TELA 1: Lista de eventos ─────────────────────────────────
 
 function renderFinLista() {
+  _finState.screen = 'lista';
   var isAdmin = CTX && CTX.role === 'admin';
   var evts = _finState.eventos;
   var html = header();
@@ -3034,115 +3094,452 @@ function renderFinLista() {
     html += '<div class="hint">' + (isAdmin
       ? 'Nenhum evento criado ainda. Toque em + Novo Evento para começar.'
       : 'Nenhum evento disponível no momento.') + '</div>';
-  } else {
-    evts.forEach(function(evt) {
-      var pct = evt.metaTotal > 0
-        ? Math.round((_finTotalArrecadado(evt.id) / evt.metaTotal) * 100) : 0;
-      html += '<div onclick="_finAbrirEvento(\'' + esc(evt.id) + '\')" style="background:#141414;border:1px solid #222;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer">'
-        + '<div style="font-weight:700;font-size:14px;margin-bottom:2px">' + esc(evt.nome) + '</div>'
-        + '<div style="font-size:11px;color:#666;margin-bottom:10px">'
-        + (evt.dataEvento ? evt.dataEvento + ' · ' : '')
-        + 'Meta: R$ ' + _finFmt(evt.metaTotal) + '</div>'
-        + '<div style="background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;margin-bottom:4px">'
-        + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div>'
-        + '<div style="display:flex;justify-content:space-between;font-size:10px;color:#666">'
-        + '<span>R$ ' + _finFmt(_finTotalArrecadado(evt.id)) + ' arrecadados</span>'
-        + '<span style="color:' + _finCor(pct) + ';font-weight:700">' + pct + '%</span>'
-        + '</div></div>';
-    });
   }
 
+  html += '<div id="_finListaEventos_"></div>';
   $('app').innerHTML = html;
+
+  var cont = $('_finListaEventos_');
+  evts.forEach(function(evt) {
+    cont.appendChild(_finCardEvento(evt, isAdmin));
+  });
 }
 
-// Cache simplificado de totais (será preenchido ao abrir evento)
-var _finTotaisCache = {};
-function _finTotalArrecadado(id) { return _finTotaisCache[id] || 0; }
-function _finCor(pct) { return pct >= 100 ? '#4ade80' : pct >= 50 ? '#FFC400' : '#e55'; }
-function _finFmt(v) {
-  return Number(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+function _finCardEvento(evt, isAdmin) {
+  var pct = evt.metaTotal > 0
+    ? Math.round((_finTotaisCache[evt.id]||0) / evt.metaTotal * 100) : 0;
+  var encerrado = evt.status === 'encerrado';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#141414;border:1px solid #222;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer';
+  card.onclick = function() { _finAbrirEvento(evt.id); };
+
+  var topRow = document.createElement('div');
+  topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px';
+
+  var nomeEl = document.createElement('div');
+  nomeEl.style.cssText = 'font-weight:700;font-size:14px;flex:1;min-width:0';
+  nomeEl.textContent = evt.nome;
+  topRow.appendChild(nomeEl);
+
+  if (isAdmin) {
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0';
+
+    var bEdit = document.createElement('button');
+    bEdit.textContent = '✏️';
+    bEdit.style.cssText = 'background:none;border:none;color:#FFC400;cursor:pointer;font-size:14px;padding:2px';
+    bEdit.onclick = function(ev) { ev.stopPropagation(); _finModalEditarEvento(evt.id); };
+    btnRow.appendChild(bEdit);
+
+    var bStatus = document.createElement('button');
+    bStatus.textContent = encerrado ? '🔴' : '🟢';
+    bStatus.title = encerrado ? 'Reabrir evento' : 'Encerrar evento';
+    bStatus.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:2px';
+    bStatus.onclick = function(ev) { ev.stopPropagation(); _finToggleStatusLista(evt.id, this); };
+    btnRow.appendChild(bStatus);
+
+    var bDel = document.createElement('button');
+    bDel.textContent = '✕';
+    bDel.style.cssText = 'background:none;border:none;color:#e55;cursor:pointer;font-size:15px;font-weight:700;padding:2px 4px';
+    bDel.onclick = function(ev) { ev.stopPropagation(); _finConfirmDeleteEvento(evt.id, evt.nome); };
+    btnRow.appendChild(bDel);
+
+    topRow.appendChild(btnRow);
+  }
+  card.appendChild(topRow);
+
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:11px;color:#666;margin-bottom:10px';
+  sub.textContent = (evt.dataEvento ? _finFmtData(evt.dataEvento) + ' · ' : '') + 'Meta: R$ ' + _finFmt(evt.metaTotal);
+  card.appendChild(sub);
+
+  var barBg = document.createElement('div');
+  barBg.style.cssText = 'background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;margin-bottom:4px';
+  var barFill = document.createElement('div');
+  barFill.style.cssText = 'height:100%;border-radius:4px;background:'+_finCor(pct)+';width:'+Math.min(pct,100)+'%';
+  barBg.appendChild(barFill);
+  card.appendChild(barBg);
+
+  var labelRow = document.createElement('div');
+  labelRow.style.cssText = 'display:flex;justify-content:space-between;font-size:10px;color:#666';
+  labelRow.innerHTML = '<span>R$ ' + _finFmt(_finTotaisCache[evt.id]||0) + ' arrecadados</span>'
+    + '<span style="color:'+_finCor(pct)+';font-weight:700">'+pct+'%</span>';
+  card.appendChild(labelRow);
+
+  return card;
 }
 
-// ── TELA 2: Detalhe do evento ────────────────────────────────
+function _finToggleStatusLista(eventoId, btn) {
+  callAPI('toggleStatusEvento', {eventoId: eventoId}, function(r) {
+    var evt = _finState.eventos.find(function(e){return e.id===eventoId;});
+    if (evt) evt.status = r.status;
+    btn.textContent = r.status === 'encerrado' ? '🔴' : '🟢';
+    btn.title = r.status === 'encerrado' ? 'Reabrir evento' : 'Encerrar evento';
+    mostrarToast(r.status === 'encerrado' ? 'Evento encerrado' : 'Evento reaberto');
+  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
+}
+
+// ── TELA 2: Detalhe do evento (Entradas / Saídas) ────────────
 
 function _finAbrirEvento(id) {
+  _finState.screen = 'evento';
+  _finState.eventoTab = 'entradas';
   var body = $('app');
   body.innerHTML = header() + '<div class="load">Carregando…</div>';
   callAPI('getEventoFinanceiroDetalhe', {eventoId: id}, function(r) {
     _finState.eventoAtivo = r;
     _finTotaisCache[id] = r.totalArrecadado || 0;
-    renderFinEvento();
+    callAPI('getCaixaEvento', {eventoId: id}, function(rc) {
+      _finState.eventoAtivo.caixa = rc;
+      renderFinEvento();
+    }, function() {
+      _finState.eventoAtivo.caixa = {entradas:[], saidas:[]};
+      renderFinEvento();
+    });
   }, function(e) { mostrarToast('Erro: ' + (e.message||e)); });
 }
 
 function renderFinEvento() {
+  _finState.screen = 'evento';
   var r = _finState.eventoAtivo;
-  if (!r) return;
+  if (!r) { renderFinLista(); return; }
   var evt = r.evento;
-  var partic = r.participantes || [];
   var isAdmin = CTX && CTX.role === 'admin';
-  var pct = r.pct || 0;
+  var tab = _finState.eventoTab || 'entradas';
 
   var html = header();
   html += '<button onclick="renderFinLista()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Financeiro</button>';
-  html += '<div style="font-size:16px;font-weight:900;margin-bottom:2px">' + esc(evt.nome) + '</div>';
+
+  // Linha com nome + ações
+  html += '<div id="_finEvtTitleRow_" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px"></div>';
   if (evt.dataEvento) html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(_finFmtData(evt.dataEvento)) + '</div>';
 
-  // Cards de meta
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
-  html += _finMetaCard('R$ ' + _finFmt(evt.metaTotal), 'Meta total');
-  html += _finMetaCard('R$ ' + _finFmt(evt.metaIndiv), 'Por cabeça');
-  html += _finMetaCard('R$ ' + _finFmt(r.totalArrecadado), 'Arrecadado', '#4ade80');
-  html += _finMetaCard('R$ ' + _finFmt(Math.max(0, evt.metaTotal - r.totalArrecadado)), 'Faltam', '#e55');
-  html += '</div>';
+  // Cards de meta (sem saldo)
+  html += '<div id="_finMetaCards_" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px"></div>';
 
   // Barra geral
+  var pct = r.pct || 0;
   html += '<div style="background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden;margin-bottom:14px">'
     + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div>';
 
-  // Botões admin
-  // Sub-abas: montar via DOM após inserir HTML
-  var finTab = _finState.eventoTab || 'participantes';
-  if (finTab === 'caixa') { _finRenderCaixaInline(evt.id); return; }
-  html += '<div data-fin-list="1" style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">PARTICIPANTES</div>';
+  // Sub-tabs
+  html += '<div id="_finTabRow_" style="display:flex;gap:6px;margin-bottom:14px"></div>';
 
-  if (!partic.length) {
-    html += '<div class="hint">Nenhum participante adicionado ainda.</div>';
-  } else {
-    partic.forEach(function(p) {
-      var corP = p.status === 'quitado' ? '#4ade80' : p.status === 'parcial' ? '#FFC400' : '#e55';
-      var badgeTxt = p.status === 'quitado' ? 'Quitado' : p.status === 'parcial' ? 'Parcial' : 'Pendente';
-      var rowHtml = '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #141414;cursor:pointer" '
-        + 'onclick="_finAbrirDesbravador(\'' + esc(p.nome) + '\')">'
-        + '<div style="flex:1">'
-        + '<div style="font-size:13px;font-weight:600">' + esc(p.nome) + '</div>'
-        + '<div style="font-size:10px;color:#555">' + esc(p.unidade) + '</div></div>'
-        + '<div style="width:80px">'
-        + '<div style="background:#1a1a1a;border-radius:3px;height:4px;overflow:hidden;margin-bottom:2px">'
-        + '<div style="height:100%;border-radius:3px;background:' + corP + ';width:' + Math.min(p.pct,100) + '%"></div></div>'
-        + '<div style="font-size:10px;color:#666;text-align:right">R$ ' + _finFmt(p.pago) + '</div></div>'
-        + '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:' + corP + '22;color:' + corP + ';border:1px solid ' + corP + '44">' + badgeTxt + '</span>';
+  // Botões de ação por tab
+  html += '<div id="_finTabBtns_" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>';
 
-      if (isAdmin) {
-        rowHtml += '<button onclick="event.stopPropagation();_finEditarMetaPartic(\'' + esc(evt.id) + '\',\'' + esc(p.nome) + '\',' + p.metaIndiv + ')" style="background:none;border:none;color:#FFC400;cursor:pointer;font-size:14px;padding:2px 4px" title="Editar meta">✏️</button>';
-        rowHtml += '<button onclick="event.stopPropagation();_finConfirmRemovePartic(\'' + esc(evt.id) + '\',\'' + esc(p.nome) + '\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px 4px" title="Remover">✕</button>';
-      }
-      rowHtml += '</div>';
-      html += rowHtml;
-    });
-  }
+  // Conteúdo da tab
+  html += '<div id="_finTabContent_"></div>';
 
   $('app').innerHTML = html;
-  _finRenderEventoDOM(evt, isAdmin, finTab);
+
+  // Título + ações ao lado do nome
+  var titleRow = $('_finEvtTitleRow_');
+  var nomeEl = document.createElement('div');
+  nomeEl.style.cssText = 'font-size:16px;font-weight:900;flex:1;min-width:0';
+  nomeEl.textContent = evt.nome;
+  titleRow.appendChild(nomeEl);
+
+  if (isAdmin) {
+    var actRow = document.createElement('div');
+    actRow.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0';
+
+    var bEdit = document.createElement('button');
+    bEdit.textContent = '✏️';
+    bEdit.style.cssText = 'background:none;border:none;color:#FFC400;cursor:pointer;font-size:16px;padding:2px';
+    bEdit.onclick = function() { _finModalEditarEvento(evt.id); };
+    actRow.appendChild(bEdit);
+
+    var encerrado = evt.status === 'encerrado';
+    var bStatus = document.createElement('button');
+    bStatus.textContent = encerrado ? '🔴' : '🟢';
+    bStatus.title = encerrado ? 'Reabrir' : 'Encerrar';
+    bStatus.style.cssText = 'background:none;border:none;cursor:pointer;font-size:16px;padding:2px';
+    bStatus.onclick = function() { _finToggleStatus(evt.id); };
+    actRow.appendChild(bStatus);
+
+    var bDel = document.createElement('button');
+    bDel.textContent = '✕';
+    bDel.style.cssText = 'background:none;border:none;color:#e55;cursor:pointer;font-size:17px;font-weight:700;padding:2px 4px';
+    bDel.onclick = function() { _finConfirmDeleteEvento(evt.id, evt.nome); };
+    actRow.appendChild(bDel);
+
+    titleRow.appendChild(actRow);
+  }
+
+  // Cards de meta
+  var metaCont = $('_finMetaCards_');
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(evt.metaTotal), 'Meta total'));
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(evt.metaIndiv), 'Por cabeça'));
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(r.totalArrecadado), 'Arrecadado', '#4ade80'));
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(Math.max(0, evt.metaTotal - r.totalArrecadado)), 'Faltam', '#e55'));
+
+  // Sub-tabs
+  var tabRow = $('_finTabRow_');
+  ['entradas','saidas'].forEach(function(t) {
+    var b = document.createElement('button');
+    b.className = 'pill' + (tab === t ? ' on' : '');
+    b.textContent = t === 'entradas' ? '🟢 Entradas' : '🔴 Saídas';
+    b.onclick = function() { _finState.eventoTab = t; renderFinEvento(); };
+    tabRow.appendChild(b);
+  });
+
+  // Botões + relatório
+  var btnRow = $('_finTabBtns_');
+  if (isAdmin) {
+    if (tab === 'entradas') {
+      var bAddP = document.createElement('button');
+      bAddP.textContent = '+ Participante';
+      bAddP.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;min-width:130px';
+      bAddP.onclick = function() { _finModalAddParticipante(evt.id); };
+      btnRow.appendChild(bAddP);
+
+      var bAddOut = document.createElement('button');
+      bAddOut.textContent = '+ Outra entrada';
+      bAddOut.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;min-width:130px';
+      bAddOut.onclick = function() { _finModalAddLancamento(evt.id, 'entrada'); };
+      btnRow.appendChild(bAddOut);
+    } else {
+      var bAddS = document.createElement('button');
+      bAddS.textContent = '+ Saída';
+      bAddS.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;min-width:130px';
+      bAddS.onclick = function() { _finModalAddLancamento(evt.id, 'saida'); };
+      btnRow.appendChild(bAddS);
+    }
+  }
+  var bRel = document.createElement('button');
+  bRel.textContent = '📊 Relatório';
+  bRel.style.cssText = 'background:#FFC400;color:#000;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer';
+  bRel.onclick = function() { _finRelatorio(); };
+  btnRow.appendChild(bRel);
+
+  // Conteúdo
+  if (tab === 'entradas') _finRenderEntradas();
+  else _finRenderSaidas();
 }
 
-function _finMetaCard(val, lbl, cor) {
-  return '<div style="background:#141414;border:1px solid #222;border-radius:10px;padding:10px;text-align:center">'
-    + '<div style="font-size:15px;font-weight:900;color:' + (cor||'#FFC400') + '">' + val + '</div>'
-    + '<div style="font-size:10px;color:#666;margin-top:2px">' + lbl + '</div></div>';
+// ── Conteúdo: Entradas (Participantes + Outras entradas) ─────
+
+function _finRenderEntradas() {
+  var r = _finState.eventoAtivo;
+  var isAdmin = CTX && CTX.role === 'admin';
+  var cont = $('_finTabContent_');
+  cont.innerHTML = '';
+
+  // Busca + filtro
+  var searchRow = document.createElement('div');
+  searchRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px';
+  var inpBusca = document.createElement('input');
+  inpBusca.placeholder = 'Buscar desbravador...';
+  inpBusca.value = _finState.filtro.busca || '';
+  inpBusca.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#fff;border-radius:10px;padding:9px 12px;font-size:13px';
+  inpBusca.oninput = function() { _finState.filtro.busca = this.value; _finRenderListaParticipantes(); };
+  searchRow.appendChild(inpBusca);
+
+  var bFiltro = document.createElement('button');
+  bFiltro.textContent = _finState.filtro.modo === 'unidade' ? '🏠' : 'A-Z';
+  bFiltro.title = 'Alternar ordenação';
+  bFiltro.style.cssText = 'flex-shrink:0;background:#141414;border:1px solid #333;color:#FFC400;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer';
+  bFiltro.onclick = function() {
+    _finState.filtro.modo = _finState.filtro.modo === 'unidade' ? 'alfabetica' : 'unidade';
+    this.textContent = _finState.filtro.modo === 'unidade' ? '🏠' : 'A-Z';
+    _finRenderListaParticipantes();
+  };
+  searchRow.appendChild(bFiltro);
+  cont.appendChild(searchRow);
+
+  var lblP = document.createElement('div');
+  lblP.style.cssText = 'font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px';
+  lblP.textContent = 'PARTICIPANTES';
+  cont.appendChild(lblP);
+
+  var listaDiv = document.createElement('div');
+  listaDiv.id = '_finListaPartic_';
+  cont.appendChild(listaDiv);
+
+  _finRenderListaParticipantes();
+
+  // Outras entradas
+  var entradasCaixa = (r.caixa||{}).entradas || [];
+  var lblO = document.createElement('div');
+  lblO.style.cssText = 'font-size:11px;font-weight:700;color:#666;margin:18px 0 8px;letter-spacing:1px';
+  lblO.textContent = 'OUTRAS ENTRADAS';
+  cont.appendChild(lblO);
+
+  if (!entradasCaixa.length) {
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.style.padding = '14px';
+    hint.textContent = 'Nenhuma outra entrada registrada.';
+    cont.appendChild(hint);
+  } else {
+    entradasCaixa.forEach(function(l) {
+      cont.appendChild(_finLinhaLancamento(l, isAdmin, false));
+    });
+  }
 }
 
-// ── TELA 3: Detalhe do desbravador ───────────────────────────
+function _finRenderListaParticipantes() {
+  var r = _finState.eventoAtivo;
+  var isAdmin = CTX && CTX.role === 'admin';
+  var listaDiv = $('_finListaPartic_');
+  if (!listaDiv) return;
+  listaDiv.innerHTML = '';
+
+  var partic = (r.participantes || []).slice();
+  var busca = (_finState.filtro.busca||'').toLowerCase();
+  if (busca) partic = partic.filter(function(p){ return p.nome.toLowerCase().indexOf(busca) >= 0; });
+
+  if (_finState.filtro.modo === 'unidade') {
+    partic.sort(function(a,b){ return (a.unidade||'').localeCompare(b.unidade||'') || a.nome.localeCompare(b.nome); });
+  } else {
+    partic.sort(function(a,b){ return a.nome.localeCompare(b.nome); });
+  }
+
+  if (!partic.length) {
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.style.padding = '14px';
+    hint.textContent = 'Nenhum participante encontrado.';
+    listaDiv.appendChild(hint);
+    return;
+  }
+
+  var ultimaUnidade = null;
+  partic.forEach(function(p) {
+    if (_finState.filtro.modo === 'unidade' && p.unidade !== ultimaUnidade) {
+      ultimaUnidade = p.unidade;
+      var sep = document.createElement('div');
+      sep.style.cssText = 'font-size:10px;color:#FFC400;font-weight:700;margin:8px 0 4px;letter-spacing:1px';
+      sep.textContent = (p.unidade || 'SEM UNIDADE').toUpperCase();
+      listaDiv.appendChild(sep);
+    }
+    listaDiv.appendChild(_finLinhaParticipante(p, isAdmin, r.evento.id));
+  });
+}
+
+function _finLinhaParticipante(p, isAdmin, eventoId) {
+  var corP = p.status==='quitado'?'#4ade80':p.status==='parcial'?'#FFC400':'#e55';
+  var badgeTxt = p.status==='quitado'?'Quitado':p.status==='parcial'?'Parcial':'Pendente';
+
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #141414;cursor:pointer';
+  row.onclick = function() { _finAbrirDesbravador(p.nome); };
+
+  var info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:0';
+  info.innerHTML = '<div style="font-size:13px;font-weight:600">'+esc(p.nome)+'</div>'
+    + '<div style="font-size:10px;color:#555">'+esc(p.unidade)+'</div>';
+  row.appendChild(info);
+
+  var progWrap = document.createElement('div');
+  progWrap.style.width = '70px';
+  progWrap.innerHTML = '<div style="background:#1a1a1a;border-radius:3px;height:4px;overflow:hidden;margin-bottom:2px">'
+    + '<div style="height:100%;border-radius:3px;background:'+corP+';width:'+Math.min(p.pct,100)+'%"></div></div>'
+    + '<div style="font-size:10px;color:#666;text-align:right">R$ '+_finFmt(p.pago)+'</div>';
+  row.appendChild(progWrap);
+
+  var badge = document.createElement('span');
+  badge.style.cssText = 'font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:'+corP+'22;color:'+corP+';border:1px solid '+corP+'44;flex-shrink:0';
+  badge.textContent = badgeTxt;
+  row.appendChild(badge);
+
+  if (isAdmin) {
+    var bEdit = document.createElement('button');
+    bEdit.textContent = '✏️';
+    bEdit.title = 'Editar meta';
+    bEdit.style.cssText = 'background:none;border:none;color:#FFC400;cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0';
+    bEdit.onclick = function(ev) { ev.stopPropagation(); _finEditarMetaPartic(eventoId, p.nome, p.metaIndiv); };
+    row.appendChild(bEdit);
+
+    var bDel = document.createElement('button');
+    bDel.textContent = '✕';
+    bDel.title = 'Remover';
+    bDel.style.cssText = 'background:none;border:none;color:#e55;cursor:pointer;font-size:14px;font-weight:700;padding:2px 4px;flex-shrink:0';
+    bDel.onclick = function(ev) { ev.stopPropagation(); _finConfirmRemovePartic(eventoId, p.nome); };
+    row.appendChild(bDel);
+  }
+
+  return row;
+}
+
+// ── Conteúdo: Saídas ───────────────────────────────────────────
+
+function _finRenderSaidas() {
+  var r = _finState.eventoAtivo;
+  var isAdmin = CTX && CTX.role === 'admin';
+  var cont = $('_finTabContent_');
+  cont.innerHTML = '';
+
+  var lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px';
+  lbl.textContent = 'SAÍDAS';
+  cont.appendChild(lbl);
+
+  var saidas = (r.caixa||{}).saidas || [];
+  if (!saidas.length) {
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.style.padding = '14px';
+    hint.textContent = 'Nenhuma saída registrada.';
+    cont.appendChild(hint);
+    return;
+  }
+
+  saidas.forEach(function(l) {
+    cont.appendChild(_finLinhaLancamento(l, isAdmin, true));
+  });
+}
+
+function _finLinhaLancamento(l, isAdmin, mostraPago) {
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px';
+
+  var info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:0';
+  info.innerHTML = '<div style="font-size:13px;font-weight:600">'+esc(l.descricao)+'</div>'
+    + '<div style="font-size:10px;color:#666;margin-top:2px">'
+    + (l.categoria?'<span style="color:#FFC400;margin-right:6px">'+esc(l.categoria)+'</span>':'')
+    + esc(l.data) + '</div>';
+  row.appendChild(info);
+
+  var right = document.createElement('div');
+  right.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0';
+
+  var valEl = document.createElement('span');
+  valEl.style.cssText = 'font-size:14px;font-weight:700;color:'+(mostraPago?'#e55':'#4ade80');
+  valEl.textContent = (mostraPago?'-':'+') + ' R$ ' + _finFmt(l.valor);
+  right.appendChild(valEl);
+
+  if (mostraPago) {
+    var chk = document.createElement('button');
+    chk.textContent = l.pago ? '✓ Pago' : 'Pendente';
+    chk.style.cssText = 'font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;cursor:'+(isAdmin?'pointer':'default')+';background:'+(l.pago?'#4ade8022':'#e5553322')+';color:'+(l.pago?'#4ade80':'#e55')+';border:1px solid '+(l.pago?'#4ade8044':'#e5553344');
+    if (isAdmin) chk.onclick = function() { _finTogglePago(l.id); };
+    right.appendChild(chk);
+  }
+
+  if (isAdmin) {
+    var bDel = document.createElement('button');
+    bDel.textContent = '✕';
+    bDel.style.cssText = 'background:none;border:none;color:#e55;cursor:pointer;font-size:14px;font-weight:700;padding:2px';
+    bDel.onclick = function() { _finConfirmDeleteLanc(l.id); };
+    right.appendChild(bDel);
+  }
+
+  row.appendChild(right);
+  return row;
+}
+
+function _finTogglePago(lancId) {
+  callAPI('togglePagoLancamento', {lancId: lancId}, function(r) {
+    mostrarToast(r.pago ? '✓ Marcado como pago' : 'Marcado como pendente');
+    _finAbrirEvento(_finState.eventoAtivo.evento.id);
+  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
+}
+
+// ── TELA 3: Detalhe do desbravador ────────────────────────────
 
 function _finAbrirDesbravador(nome) {
   var r = _finState.eventoAtivo;
@@ -3150,13 +3547,15 @@ function _finAbrirDesbravador(nome) {
   var partic = (r.participantes||[]).find(function(p){return p.nome===nome;});
   var pags = (r.pagamentos||[]).filter(function(p){return p.nome===nome;});
   _finState.desbravadorAtivo = {partic: partic, pags: pags};
+  _finState.screen = 'desbravador';
   renderFinDesbravador();
 }
 
 function renderFinDesbravador() {
+  _finState.screen = 'desbravador';
   var d = _finState.desbravadorAtivo;
   var r = _finState.eventoAtivo;
-  if (!d||!r) return;
+  if (!d||!r) { renderFinEvento(); return; }
   var p = d.partic;
   var pags = d.pags;
   var isAdmin = CTX && CTX.role === 'admin';
@@ -3166,45 +3565,63 @@ function renderFinDesbravador() {
   html += '<button onclick="renderFinEvento()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← ' + esc(r.evento.nome) + '</button>';
   html += '<div style="font-size:16px;font-weight:900;margin-bottom:2px">' + esc(p.nome) + '</div>';
   html += '<div style="font-size:11px;color:#666;margin-bottom:12px">' + esc(p.unidade) + '</div>';
-
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
-  html += _finMetaCard('R$ ' + _finFmt(p.pago), 'Pago', corP);
-  html += _finMetaCard('R$ ' + _finFmt(p.metaIndiv), 'Meta');
-  html += _finMetaCard('R$ ' + _finFmt(Math.max(0,p.metaIndiv-p.pago)), 'Saldo', p.saldo>0?'#e55':'#4ade80');
-  html += '</div>';
-
+  html += '<div id="_finDesbMeta_" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px"></div>';
   html += '<div style="background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;margin-bottom:14px">'
     + '<div style="height:100%;border-radius:4px;background:' + corP + ';width:' + Math.min(p.pct,100) + '%"></div></div>';
-
   html += '<div style="font-size:11px;font-weight:700;color:#666;margin-bottom:8px;letter-spacing:1px">HISTÓRICO DE PAGAMENTOS</div>';
-
-  if (!pags.length) {
-    html += '<div class="hint">Nenhum pagamento registrado ainda.</div>';
-  } else {
-    pags.forEach(function(pg) {
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px">'
-        + '<div><div style="font-size:11px;color:#666">' + esc(pg.data) + '</div>'
-        + (pg.obs?'<div style="font-size:10px;color:#555;margin-top:2px">'+esc(pg.obs)+'</div>':'')
-        + '</div>'
-        + '<div style="display:flex;align-items:center;gap:8px">'
-        + '<span style="font-size:14px;font-weight:700;color:#4ade80">R$ ' + _finFmt(pg.valor) + '</span>'
-        + (isAdmin?'<button onclick="_finConfirmDeletePag(\''+esc(pg.id)+'\',\''+esc(p.nome)+'\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px">✕</button>':'')
-        + '</div></div>';
-    });
-  }
-
+  html += '<div id="_finPagsList_"></div>';
   if (isAdmin) {
     html += '<button onclick="_finModalAddPagamento()" style="width:100%;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">+ Registrar pagamento</button>';
   }
 
   $('app').innerHTML = html;
+
+  var metaCont = $('_finDesbMeta_');
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(p.pago), 'Pago', corP));
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(p.metaIndiv), 'Meta'));
+  metaCont.appendChild(_finMetaCard('R$ ' + _finFmt(Math.max(0,p.metaIndiv-p.pago)), 'Saldo', p.saldo>0?'#e55':'#4ade80'));
+
+  var pagsList = $('_finPagsList_');
+  if (!pags.length) {
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = 'Nenhum pagamento registrado ainda.';
+    pagsList.appendChild(hint);
+  } else {
+    pags.forEach(function(pg) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px';
+      var info = document.createElement('div');
+      info.innerHTML = '<div style="font-size:11px;color:#666">'+esc(_finFmtData(pg.data))+'</div>'
+        + (pg.obs?'<div style="font-size:10px;color:#555;margin-top:2px">'+esc(pg.obs)+'</div>':'');
+      row.appendChild(info);
+      var right = document.createElement('div');
+      right.style.cssText = 'display:flex;align-items:center;gap:8px';
+      right.innerHTML = '<span style="font-size:14px;font-weight:700;color:#4ade80">R$ '+_finFmt(pg.valor)+'</span>';
+      if (isAdmin) {
+        var bDel = document.createElement('button');
+        bDel.textContent = '✕';
+        bDel.style.cssText = 'background:none;border:none;color:#e55;cursor:pointer;font-size:14px;font-weight:700;padding:2px';
+        bDel.onclick = function() { _finConfirmDeletePag(pg.id, p.nome); };
+        right.appendChild(bDel);
+      }
+      row.appendChild(right);
+      pagsList.appendChild(row);
+    });
+  }
 }
 
 // ── TELA 4: Relatório ────────────────────────────────────────
 
 function _finRelatorio() {
+  _finState.screen = 'relatorio';
+  renderFinRelatorio();
+}
+
+function renderFinRelatorio() {
+  _finState.screen = 'relatorio';
   var r = _finState.eventoAtivo;
-  if (!r) return;
+  if (!r) { renderFinLista(); return; }
   var evt = r.evento;
   var partic = r.participantes || [];
   var pct = r.pct || 0;
@@ -3219,7 +3636,6 @@ function _finRelatorio() {
     + '<div style="background:#1a1a1a;border-radius:4px;height:8px;overflow:hidden;margin-top:10px">'
     + '<div style="height:100%;border-radius:4px;background:' + _finCor(pct) + ';width:' + Math.min(pct,100) + '%"></div></div></div>';
 
-  // Chips de status
   var nQuit = partic.filter(function(p){return p.status==='quitado';}).length;
   var nParc = partic.filter(function(p){return p.status==='parcial';}).length;
   var nPend = partic.filter(function(p){return p.status==='pendente';}).length;
@@ -3265,28 +3681,62 @@ function _finCompartilharRelatorio() {
 
 // ── MODAIS ───────────────────────────────────────────────────
 
-// Modal novo evento
-function _finNovoEvento() {
+function _finModalBase(titulo) {
   var ov = document.createElement('div');
   ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
   var card = document.createElement('div');
   card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Novo Evento</div>'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nome *</label>'
-    + '<input id="_finNome_" placeholder="Ex: Campori 2026" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data do evento</label>'
-    + '<input id="_finData_" type="date" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta total (R$) *</label>'
-    + '<input id="_finMeta_" type="number" placeholder="18000" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta por cabeça (R$)</label>'
-    + '<input id="_finMetaI_" type="number" placeholder="1500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '<button onclick="_finSalvarEvento()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Criar →</button>'
-    + '</div>';
+  var t = document.createElement('div');
+  t.style.cssText = 'font-size:16px;font-weight:700;margin-bottom:16px';
+  t.textContent = titulo;
+  card.appendChild(t);
   ov.appendChild(card);
-  document.body.appendChild(ov);
+  return {ov: ov, card: card};
+}
+function _finLabel(txt) {
+  var l = document.createElement('label');
+  l.style.cssText = 'font-size:12px;color:#888;display:block;margin-bottom:4px';
+  l.textContent = txt;
+  return l;
+}
+function _finInput(id, type, val, placeholder) {
+  var i = document.createElement('input');
+  i.id = id; i.type = type||'text';
+  if (val !== undefined && val !== null) i.value = val;
+  if (placeholder) i.placeholder = placeholder;
+  i.style.cssText = 'width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px;box-sizing:border-box';
+  return i;
+}
+function _finBtnRow(cancelFn, okFn, okLabel) {
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;margin-top:6px';
+  var bCancel = document.createElement('button');
+  bCancel.textContent = 'Cancelar';
+  bCancel.style.cssText = 'flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer';
+  bCancel.onclick = cancelFn || _finFecharOv;
+  row.appendChild(bCancel);
+  var bOk = document.createElement('button');
+  bOk.textContent = okLabel || 'Salvar →';
+  bOk.style.cssText = 'flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer';
+  bOk.onclick = okFn;
+  row.appendChild(bOk);
+  return row;
+}
+
+// Novo evento
+function _finNovoEvento() {
+  var m = _finModalBase('+ Novo Evento');
+  m.card.appendChild(_finLabel('Nome *'));
+  m.card.appendChild(_finInput('_finNome_', 'text', '', 'Ex: Campori 2026'));
+  m.card.appendChild(_finLabel('Data do evento'));
+  m.card.appendChild(_finInput('_finData_', 'date'));
+  m.card.appendChild(_finLabel('Meta total (R$) *'));
+  m.card.appendChild(_finInput('_finMeta_', 'number', '', '18000'));
+  m.card.appendChild(_finLabel('Meta por cabeça (R$)'));
+  m.card.appendChild(_finInput('_finMetaI_', 'number', '', '1500'));
+  m.card.appendChild(_finBtnRow(null, _finSalvarEvento, 'Criar →'));
+  document.body.appendChild(m.ov);
 }
 
 function _finSalvarEvento() {
@@ -3298,121 +3748,211 @@ function _finSalvarEvento() {
   if (!meta) { mostrarToast('Informe a meta total.'); return; }
   _finFecharOv();
   callAPI('createEventoFinanceiro', {dados:{nome:nome.trim(),dataEvento:data,metaTotal:meta,metaIndiv:metaI}},
-    function(r) { mostrarToast('Evento criado ✓'); loadFinanceiro(); },
+    function() { mostrarToast('Evento criado ✓'); loadFinanceiro(); },
     function(e) { mostrarToast('Erro: '+(e.message||e)); }
   );
 }
 
-// Modal adicionar participante
-function _finModalAddParticipante(eventoId) {
-  var UNITS_FIN = ['Leão','Panda','Tigre','Puma'];
-  var evt = (_finState.eventoAtivo||{}).evento||{};
-  var ov = document.createElement('div');
-  ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  var pillsHtml = UNITS_FIN.map(function(u){
-    return '<button type="button" onclick="_finSelecionarUnidade(\''+u+'\',this,\''+eventoId+'\')" '
-      +'style="background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer">'+u+'</button>';
-  }).join('');
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Participante</div>'
-    + '<div style="font-size:12px;color:#888;margin-bottom:8px">Por unidade:</div>'
-    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + pillsHtml + '</div>'
-    + '<div style="font-size:12px;color:#888;margin-bottom:6px">— ou individualmente —</div>'
-    + '<div id="_finListaInd_" style="max-height:160px;overflow-y:auto;margin-bottom:10px"></div>'
-    + '<input id="_finBuscaNome_" placeholder="Buscar desbravador..." oninput="_finBuscarNome(\''+eventoId+'\')" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:14px">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '</div>';
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-  _finBuscarNome(eventoId);
-}
-
-function _finSelecionarUnidade(unidade, btn, eventoId) {
-  btn.style.background = '#FFC400'; btn.style.color = '#000'; btn.style.borderColor = '#FFC400';
-  var evt = (_finState.eventoAtivo||{}).evento||{};
-  callAPI('getMembrosParaFinanceiro', {unidade: unidade}, function(r) {
-    var nomes = (r.membros||[]).map(function(m){return m.nome;});
-    if (!nomes.length) { mostrarToast('Nenhum membro ativo nessa unidade.'); return; }
-    var metaI = evt.metaIndiv || 0;
-    callAPI('addParticipantesEvento', {eventoId: eventoId, nomes: nomes, unidade: unidade, metaIndiv: metaI},
-      function(res) {
-        _finFecharOv();
-        mostrarToast(res.adicionados + ' membro(s) adicionado(s) ✓');
-        _finAbrirEvento(eventoId);
-      }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
-    );
-  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
-}
-
-var _finTodosMembros = [];
-function _finBuscarNome(eventoId) {
-  if (!_finTodosMembros.length) {
-    callAPI('getMembrosParaFinanceiro', {}, function(r) {
-      _finTodosMembros = r.membros || [];
-      _finRenderListaInd(eventoId);
-    }, function(){});
-  } else {
-    _finRenderListaInd(eventoId);
+// Editar evento
+function _finModalEditarEvento(eventoIdParam) {
+  var r = _finState.eventoAtivo;
+  var evt = r ? r.evento : null;
+  var eid = eventoIdParam || (evt && evt.id);
+  if (!evt || evt.id !== eid) {
+    // Editar a partir da lista (sem ter aberto o evento ainda)
+    var evtFromList = (_finState.eventos||[]).find(function(e){return e.id===eid;});
+    if (!evtFromList) return;
+    evt = evtFromList;
   }
+  var m = _finModalBase('✏️ Editar Evento');
+  m.card.appendChild(_finLabel('Nome'));
+  m.card.appendChild(_finInput('_finEditNome_', 'text', evt.nome));
+  m.card.appendChild(_finLabel('Data do evento'));
+  m.card.appendChild(_finInput('_finEditData_', 'date', evt.dataEvento ? _finDataParaInput(evt.dataEvento) : ''));
+  m.card.appendChild(_finLabel('Meta total (R$)'));
+  m.card.appendChild(_finInput('_finEditMeta_', 'number', evt.metaTotal||0));
+  m.card.appendChild(_finLabel('Meta por cabeça (R$)'));
+  m.card.appendChild(_finInput('_finEditMetaI_', 'number', evt.metaIndiv||0));
+  m.card.appendChild(_finBtnRow(null, function(){ _finSalvarEdicaoEvento(eid); }, 'Salvar →'));
+  document.body.appendChild(m.ov);
 }
 
-function _finRenderListaInd(eventoId) {
-  var busca = (($('_finBuscaNome_')||{}).value||'').toLowerCase();
-  var lista = document.getElementById('_finListaInd_');
-  if (!lista) return;
-  var evt = (_finState.eventoAtivo||{}).evento||{};
-  var jaPartic = ((_finState.eventoAtivo||{}).participantes||[]).map(function(p){return p.nome;});
-  var filtrados = _finTodosMembros.filter(function(m){
-    return m.nome.toLowerCase().includes(busca) && !jaPartic.includes(m.nome);
-  }).slice(0,8);
-  lista.innerHTML = filtrados.map(function(m){
-    return '<div onclick="_finAddIndividual(\''+esc(m.nome)+'\',\''+esc(m.unidade)+'\',\''+eventoId+'\')" '
-      +'style="padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;margin-bottom:4px;background:#1a1a1a">'
-      +'<span style="font-size:13px">'+esc(m.nome)+'</span>'
-      +'<span style="font-size:11px;color:#666">'+esc(m.unidade)+'</span></div>';
-  }).join('') || '<div style="font-size:12px;color:#555;padding:8px">Nenhum resultado.</div>';
-}
-
-function _finAddIndividual(nome, unidade, eventoId) {
-  var evt = (_finState.eventoAtivo||{}).evento||{};
-  var metaI = evt.metaIndiv || 0;
-  callAPI('addParticipantesEvento', {eventoId: eventoId, nomes: [nome], unidade: unidade, metaIndiv: metaI},
-    function(res) {
-      _finFecharOv();
-      mostrarToast(nome + ' adicionado(a) ✓');
-      _finAbrirEvento(eventoId);
+function _finSalvarEdicaoEvento(eventoId) {
+  var nome = ($('_finEditNome_')||{}).value||'';
+  var data = ($('_finEditData_')||{}).value||'';
+  var meta = Number(($('_finEditMeta_')||{}).value||0);
+  var metaI = Number(($('_finEditMetaI_')||{}).value||0);
+  if (!nome.trim()) { mostrarToast('Nome não pode ser vazio.'); return; }
+  _finFecharOv();
+  callAPI('editEventoFinanceiro', {eventoId: eventoId, dados:{nome:nome.trim(),dataEvento:data,metaTotal:meta,metaIndiv:metaI}},
+    function() {
+      mostrarToast('Evento atualizado ✓');
+      if (_finState.screen === 'evento') _finAbrirEvento(eventoId);
+      else loadFinanceiro();
     }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
   );
 }
 
-// Modal registrar pagamento
+function _finToggleStatus(eventoId) {
+  callAPI('toggleStatusEvento', {eventoId: eventoId}, function(r) {
+    if (_finState.eventoAtivo && _finState.eventoAtivo.evento) _finState.eventoAtivo.evento.status = r.status;
+    mostrarToast(r.status === 'encerrado' ? '🔴 Evento encerrado' : '🟢 Evento reaberto');
+    renderFinEvento();
+  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
+}
+
+// Adicionar participante — nova lógica: seleção múltipla + salvar
+var _finMembrosCache = null;
+window._finSelecionados = {};
+
+function _finModalAddParticipante(eventoId) {
+  window._finSelecionados = {};
+  var m = _finModalBase('+ Participantes');
+  var hint = document.createElement('div');
+  hint.style.cssText = 'font-size:12px;color:#888;margin-bottom:8px';
+  hint.textContent = 'Toque na unidade para selecionar todos, ou escolha individualmente:';
+  m.card.appendChild(hint);
+
+  var pillsWrap = document.createElement('div');
+  pillsWrap.id = '_finUnitPills_';
+  pillsWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px';
+  m.card.appendChild(pillsWrap);
+
+  var inpBusca = _finInput('_finBuscaNome_', 'text', '', 'Buscar desbravador...');
+  inpBusca.oninput = function() { _finRenderListaSelecao(eventoId); };
+  m.card.appendChild(inpBusca);
+
+  var listaInd = document.createElement('div');
+  listaInd.id = '_finListaInd_';
+  listaInd.style.cssText = 'max-height:220px;overflow-y:auto;margin-bottom:10px;border-top:1px solid #222;border-bottom:1px solid #222;padding:8px 0';
+  m.card.appendChild(listaInd);
+
+  var contador = document.createElement('div');
+  contador.id = '_finContador_';
+  contador.style.cssText = 'font-size:12px;color:#FFC400;font-weight:700;margin-bottom:10px;text-align:center';
+  contador.textContent = '0 selecionado(s)';
+  m.card.appendChild(contador);
+
+  m.card.appendChild(_finBtnRow(null, function(){ _finSalvarParticipantesSelecionados(eventoId); }, 'Adicionar →'));
+  document.body.appendChild(m.ov);
+
+  ['Leão','Panda','Tigre','Puma'].forEach(function(u) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.unidade = u;
+    b.textContent = u;
+    b.style.cssText = 'background:#1c1c1c;color:#aaa;border:1px solid #333;border-radius:20px;padding:6px 12px;font-size:13px;cursor:pointer';
+    b.onclick = function() { _finTogglePillUnidade(u, this, eventoId); };
+    pillsWrap.appendChild(b);
+  });
+
+  if (!_finMembrosCache) {
+    callAPI('getMembrosParaFinanceiro', {}, function(r) {
+      _finMembrosCache = r.membros || [];
+      _finRenderListaSelecao(eventoId);
+    }, function(){ _finMembrosCache = []; });
+  } else {
+    _finRenderListaSelecao(eventoId);
+  }
+}
+
+function _finTogglePillUnidade(unidade, btn, eventoId) {
+  var jaPartic = ((_finState.eventoAtivo||{}).participantes||[]).map(function(p){return p.nome;});
+  var membrosDaUnidade = (_finMembrosCache||[]).filter(function(m){ return m.unidade === unidade && jaPartic.indexOf(m.nome) < 0; });
+  var todosSelecionados = membrosDaUnidade.length > 0 && membrosDaUnidade.every(function(m){ return window._finSelecionados[m.nome]; });
+
+  membrosDaUnidade.forEach(function(m) {
+    window._finSelecionados[m.nome] = !todosSelecionados;
+  });
+
+  btn.style.background = !todosSelecionados ? '#FFC400' : '#1c1c1c';
+  btn.style.color = !todosSelecionados ? '#000' : '#aaa';
+  btn.style.borderColor = !todosSelecionados ? '#FFC400' : '#333';
+
+  _finRenderListaSelecao(eventoId);
+}
+
+function _finRenderListaSelecao(eventoId) {
+  var busca = (($('_finBuscaNome_')||{}).value||'').toLowerCase();
+  var lista = $('_finListaInd_');
+  if (!lista) return;
+  var jaPartic = ((_finState.eventoAtivo||{}).participantes||[]).map(function(p){return p.nome;});
+  var membros = (_finMembrosCache||[]).filter(function(m){
+    return m.nome.toLowerCase().indexOf(busca) >= 0 && jaPartic.indexOf(m.nome) < 0;
+  });
+
+  lista.innerHTML = '';
+  if (!membros.length) {
+    lista.innerHTML = '<div style="font-size:12px;color:#555;padding:8px">Nenhum resultado.</div>';
+  } else {
+    membros.slice(0,40).forEach(function(m) {
+      var sel = !!window._finSelecionados[m.nome];
+      var item = document.createElement('div');
+      item.style.cssText = 'padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;background:'+(sel?'#FFC40022':'#1a1a1a')+';border:1px solid '+(sel?'#FFC40055':'transparent');
+      item.innerHTML = '<span style="font-size:13px">'+(sel?'✓ ':'')+esc(m.nome)+'</span>'
+        + '<span style="font-size:11px;color:#666">'+esc(m.unidade)+'</span>';
+      item.onclick = function() {
+        window._finSelecionados[m.nome] = !window._finSelecionados[m.nome];
+        _finRenderListaSelecao(eventoId);
+      };
+      lista.appendChild(item);
+    });
+  }
+
+  var n = Object.keys(window._finSelecionados).filter(function(k){return window._finSelecionados[k];}).length;
+  var contador = $('_finContador_');
+  if (contador) contador.textContent = n + ' selecionado(s)';
+}
+
+function _finSalvarParticipantesSelecionados(eventoId) {
+  var nomes = Object.keys(window._finSelecionados).filter(function(k){return window._finSelecionados[k];});
+  if (!nomes.length) { mostrarToast('Selecione ao menos um desbravador.'); return; }
+  var evt = (_finState.eventoAtivo||{}).evento || {};
+  var metaI = evt.metaIndiv || 0;
+  // Agrupar por unidade para preencher o campo unidade corretamente
+  var porUnidade = {};
+  nomes.forEach(function(nome) {
+    var m = (_finMembrosCache||[]).find(function(x){return x.nome===nome;});
+    var u = m ? m.unidade : '';
+    porUnidade[u] = porUnidade[u] || [];
+    porUnidade[u].push(nome);
+  });
+  var chamadas = Object.keys(porUnidade).length;
+  var feitas = 0;
+  _finFecharOv();
+  Object.keys(porUnidade).forEach(function(u) {
+    callAPI('addParticipantesEvento', {eventoId: eventoId, nomes: porUnidade[u], unidade: u, metaIndiv: metaI},
+      function() {
+        feitas++;
+        if (feitas === chamadas) {
+          mostrarToast(nomes.length + ' participante(s) adicionado(s) ✓');
+          _finAbrirEvento(eventoId);
+        }
+      }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+    );
+  });
+}
+
+// Registrar pagamento (participante)
 function _finModalAddPagamento() {
   var d = _finState.desbravadorAtivo;
   var r = _finState.eventoAtivo;
   if (!d||!r) return;
   var p = d.partic;
-  var ov = document.createElement('div');
-  ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:4px">+ Pagamento</div>'
-    + '<div style="font-size:12px;color:#888;margin-bottom:16px">' + esc(p.nome) + '</div>'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Valor (R$) *</label>'
-    + '<input id="_finPagVal_" type="number" placeholder="500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data *</label>'
-    + '<input id="_finPagData_" type="date" value="' + hoje() + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Observação</label>'
-    + '<input id="_finPagObs_" placeholder="Ex: Primeira parcela" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '<button onclick="_finSalvarPagamento()" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Registrar →</button>'
-    + '</div>';
-  ov.appendChild(card);
-  document.body.appendChild(ov);
+  var m = _finModalBase('+ Pagamento');
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:12px;color:#888;margin-bottom:16px;margin-top:-12px';
+  sub.textContent = p.nome;
+  m.card.insertBefore(sub, m.card.children[1]);
+
+  m.card.appendChild(_finLabel('Valor (R$) *'));
+  m.card.appendChild(_finInput('_finPagVal_', 'number', '', '500'));
+  m.card.appendChild(_finLabel('Data *'));
+  m.card.appendChild(_finInput('_finPagData_', 'date', hoje()));
+  m.card.appendChild(_finLabel('Observação'));
+  m.card.appendChild(_finInput('_finPagObs_', 'text', '', 'Ex: Primeira parcela'));
+  m.card.appendChild(_finBtnRow(null, _finSalvarPagamento, 'Registrar →'));
+  document.body.appendChild(m.ov);
 }
 
 function _finSalvarPagamento() {
@@ -3423,36 +3963,90 @@ function _finSalvarPagamento() {
   var obs = ($('_finPagObs_')||{}).value||'';
   if (!valor) { mostrarToast('Informe o valor.'); return; }
   _finFecharOv();
-  callAPI('addPagamentoFinanceiro',
-    {eventoId: r.evento.id, nome: d.partic.nome, valor: valor, data: data, obs: obs},
-    function() {
-      mostrarToast('Pagamento registrado ✓');
-      _finAbrirEvento(r.evento.id);
-    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  callAPI('addPagamentoFinanceiro', {eventoId: r.evento.id, nome: d.partic.nome, valor: valor, data: data, obs: obs},
+    function() { mostrarToast('Pagamento registrado ✓'); _finAbrirEvento(r.evento.id); },
+    function(e) { mostrarToast('Erro: '+(e.message||e)); }
   );
 }
 
-// Modal editar meta individual
+// Editar meta individual
 function _finEditarMetaPartic(eventoId, nome, metaAtual) {
-  mostrarConfirm('Editar meta de ' + nome,
-    'Nova meta individual (atual: R$ ' + _finFmt(metaAtual) + '):\n\nDigite o novo valor:',
+  var m = _finModalBase('✏️ Meta individual');
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:12px;color:#888;margin-bottom:16px;margin-top:-12px';
+  sub.textContent = nome;
+  m.card.insertBefore(sub, m.card.children[1]);
+  m.card.appendChild(_finLabel('Nova meta (R$)'));
+  m.card.appendChild(_finInput('_finMetaIndv_', 'number', metaAtual));
+  m.card.appendChild(_finBtnRow(null, function(){ _finSalvarMetaIndv(eventoId, nome); }, 'Salvar →'));
+  document.body.appendChild(m.ov);
+}
+
+function _finSalvarMetaIndv(eventoId, nome) {
+  var nova = Number(($('_finMetaIndv_')||{}).value||0);
+  if (isNaN(nova) || nova < 0) { mostrarToast('Valor inválido.'); return; }
+  _finFecharOv();
+  callAPI('editParticipanteMeta', {eventoId:eventoId, nome:nome, novaMeta:nova},
+    function() { mostrarToast('Meta atualizada ✓'); _finAbrirEvento(eventoId); },
+    function(e) { mostrarToast('Erro: '+(e.message||e)); }
+  );
+}
+
+// Lançamento (entrada livre ou saída)
+function _finModalAddLancamento(eventoId, tipoFixo) {
+  var CATS = ['Doação','Campanha','Inscrição','Local','Transporte','Alimentação','Material','Outros'];
+  var titulo = tipoFixo === 'saida' ? '+ Saída' : '+ Outra Entrada';
+  var m = _finModalBase(titulo);
+
+  m.card.appendChild(_finLabel('Descrição *'));
+  m.card.appendChild(_finInput('_finLancDesc_', 'text', '', tipoFixo==='saida' ? 'Ex: Aluguel do ônibus' : 'Ex: Doação família Silva'));
+  m.card.appendChild(_finLabel('Valor (R$) *'));
+  m.card.appendChild(_finInput('_finLancVal_', 'number', '', '500'));
+  m.card.appendChild(_finLabel('Data'));
+  m.card.appendChild(_finInput('_finLancData_', 'date', hoje()));
+  m.card.appendChild(_finLabel('Categoria'));
+  var sel = document.createElement('select');
+  sel.id = '_finLancCat_';
+  sel.style.cssText = 'width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px;box-sizing:border-box';
+  sel.innerHTML = '<option value="">Sem categoria</option>' + CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  m.card.appendChild(sel);
+
+  if (tipoFixo === 'saida') {
+    var chkWrap = document.createElement('label');
+    chkWrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:#ccc;cursor:pointer';
+    var chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.id = '_finLancPago_';
+    chk.style.cssText = 'width:18px;height:18px';
+    chkWrap.appendChild(chk);
+    chkWrap.appendChild(document.createTextNode('Já foi pago'));
+    m.card.appendChild(chkWrap);
+  }
+
+  m.card.appendChild(_finBtnRow(null, function(){ _finSalvarLancamento(eventoId, tipoFixo); }, 'Adicionar →'));
+  document.body.appendChild(m.ov);
+}
+
+function _finSalvarLancamento(eventoId, tipo) {
+  var desc = ($('_finLancDesc_')||{}).value||'';
+  var val = Number(($('_finLancVal_')||{}).value||0);
+  var data = ($('_finLancData_')||{}).value||hoje();
+  var cat = ($('_finLancCat_')||{}).value||'';
+  var pago = !!(($('_finLancPago_')||{}).checked);
+  if (!desc.trim()) { mostrarToast('Informe a descrição.'); return; }
+  if (!val) { mostrarToast('Informe o valor.'); return; }
+  _finFecharOv();
+  callAPI('addLancamentoCaixa', {eventoId:eventoId, dados:{tipo:tipo||'entrada',descricao:desc.trim(),valor:val,data:data,categoria:cat,pago:pago}},
     function() {
-      var v = prompt('Nova meta individual para ' + nome + ' (R$):', metaAtual);
-      if (v === null) return;
-      var nova = Number(v);
-      if (isNaN(nova) || nova < 0) { mostrarToast('Valor inválido.'); return; }
-      callAPI('editParticipanteMeta', {eventoId: eventoId, nome: nome, novaMeta: nova},
-        function() { mostrarToast('Meta atualizada ✓'); _finAbrirEvento(eventoId); },
-        function(e) { mostrarToast('Erro: '+(e.message||e)); }
-      );
-    }
+      mostrarToast('Lançamento adicionado ✓');
+      _finState.eventoTab = tipo === 'saida' ? 'saidas' : 'entradas';
+      _finAbrirEvento(eventoId);
+    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
   );
 }
 
 // Confirmações de exclusão
 function _finConfirmRemovePartic(eventoId, nome) {
-  mostrarConfirm('Remover ' + nome + '?',
-    'Todos os pagamentos registrados para ' + nome + ' neste evento também serão removidos.',
+  mostrarConfirm('Remover ' + nome + '?', 'Todos os pagamentos registrados para ' + nome + ' neste evento também serão removidos.',
     function() {
       callAPI('removeParticipanteEvento', {eventoId: eventoId, nome: nome},
         function() { mostrarToast(nome + ' removido(a).'); _finAbrirEvento(eventoId); },
@@ -3463,8 +4057,7 @@ function _finConfirmRemovePartic(eventoId, nome) {
 }
 
 function _finConfirmDeleteEvento(eventoId, nome) {
-  mostrarConfirm('Deletar evento "' + nome + '"?',
-    'Todos os participantes e pagamentos deste evento serão removidos permanentemente.',
+  mostrarConfirm('Deletar evento "' + nome + '"?', 'Todos os participantes e lançamentos deste evento serão removidos permanentemente.',
     function() {
       callAPI('deleteEventoFinanceiro', {eventoId: eventoId},
         function() { mostrarToast('Evento removido.'); loadFinanceiro(); },
@@ -3486,298 +4079,6 @@ function _finConfirmDeletePag(pagId, nome) {
   );
 }
 
-function _finFecharOv() {
-  var o = document.getElementById('_finOv_');
-  if (o) o.remove();
-  _finTodosMembros = [];
-}
-
-// ── DOM: render sub-abas e botões de admin ───────────────────
-
-function _finSetTab(tab) {
-  _finState.eventoTab = tab;
-  renderFinEvento();
-}
-
-function _finToggleStatus(eventoId) {
-  callAPI('toggleStatusEvento', {eventoId: eventoId}, function(r) {
-    if (_finState.eventoAtivo && _finState.eventoAtivo.evento) {
-      _finState.eventoAtivo.evento.status = r.status;
-    }
-    mostrarToast(r.status === 'encerrado' ? '🔒 Evento encerrado' : '🟢 Evento reaberto');
-    renderFinEvento();
-  }, function(e) { mostrarToast('Erro: '+(e.message||e)); });
-}
-
-function _finRenderEventoDOM(evt, isAdmin, finTab) {
-  var app = $('app');
-  if (!app) return;
-
-  // Sub-tabs
-  var tabRow = document.createElement('div');
-  tabRow.style.cssText = 'display:flex;gap:6px;margin-bottom:14px';
-  ['participantes','caixa'].forEach(function(t) {
-    var b = document.createElement('button');
-    b.className = 'pill' + (finTab === t ? ' on' : '');
-    b.textContent = t === 'participantes' ? '👥 Participantes' : '💵 Caixa';
-    b.onclick = function() { _finSetTab(t); };
-    tabRow.appendChild(b);
-  });
-
-  // Inserir antes da lista (depois dos meta-cards e barra)
-  var partHeader = app.querySelector('[data-fin-list]');
-  if (partHeader) {
-    app.insertBefore(tabRow, partHeader);
-  } else {
-    // fallback: inserir como primeiro filho após os meta-cards
-    var firstDiv = app.children[0];
-    app.insertBefore(tabRow, firstDiv);
-  }
-
-  // Botões de admin
-  if (isAdmin) {
-    var adminRow = document.createElement('div');
-    adminRow.style.cssText = 'display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap';
-
-    if (finTab === 'participantes') {
-      var bAdd = document.createElement('button');
-      bAdd.textContent = '+ Participante';
-      bAdd.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer';
-      bAdd.onclick = function() { _finModalAddParticipante(evt.id); };
-      adminRow.appendChild(bAdd);
-    }
-
-    if (finTab === 'caixa') {
-      var bLanc = document.createElement('button');
-      bLanc.textContent = '+ Lançamento';
-      bLanc.style.cssText = 'flex:1;background:#141414;border:1px solid #333;color:#aaa;border-radius:10px;padding:9px;font-size:12px;font-weight:700;cursor:pointer';
-      bLanc.onclick = function() { _finModalAddLancamento(evt.id); };
-      adminRow.appendChild(bLanc);
-    }
-
-    var bRel = document.createElement('button');
-    bRel.textContent = '📊';
-    bRel.title = 'Relatório';
-    bRel.style.cssText = 'background:#FFC400;color:#000;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer';
-    bRel.onclick = function() { _finRelatorio(); };
-    adminRow.appendChild(bRel);
-
-    var bEdit = document.createElement('button');
-    bEdit.textContent = '✏️';
-    bEdit.title = 'Editar evento';
-    bEdit.style.cssText = 'background:none;border:1px solid #333;color:#FFC400;border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
-    bEdit.onclick = function() { _finModalEditarEvento(); };
-    adminRow.appendChild(bEdit);
-
-    var isEncerrado = evt.status === 'encerrado';
-    var bStatus = document.createElement('button');
-    bStatus.textContent = isEncerrado ? '🔒' : '🟢';
-    bStatus.title = isEncerrado ? 'Reabrir evento' : 'Encerrar evento';
-    bStatus.style.cssText = 'background:none;border:1px solid #333;color:'+(isEncerrado?'#e55':'#4ade80')+';border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
-    bStatus.onclick = function() { _finToggleStatus(evt.id); };
-    adminRow.appendChild(bStatus);
-
-    var bDel = document.createElement('button');
-    bDel.textContent = '🗑';
-    bDel.title = 'Deletar evento';
-    bDel.style.cssText = 'background:none;border:1px solid #333;color:#666;border-radius:10px;padding:9px 12px;font-size:13px;cursor:pointer';
-    bDel.onclick = function() { _finConfirmDeleteEvento(evt.id, evt.nome); };
-    adminRow.appendChild(bDel);
-
-    if (partHeader) app.insertBefore(adminRow, partHeader);
-    else app.appendChild(adminRow);
-  }
-}
-
-// ── Modal editar evento ───────────────────────────────────────
-
-function _finModalEditarEvento() {
-  var r = _finState.eventoAtivo;
-  if (!r) return;
-  var evt = r.evento;
-  var ov = document.createElement('div');
-  ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar Evento</div>'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nome</label>'
-    + '<input id="_finEditNome_" value="' + esc(evt.nome) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data do evento</label>'
-    + '<input id="_finEditData_" type="date" value="' + (evt.dataEvento ? _finDataParaInput(evt.dataEvento) : '') + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta total (R$)</label>'
-    + '<input id="_finEditMeta_" type="number" value="' + (evt.metaTotal||0) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Meta por cabeça (R$)</label>'
-    + '<input id="_finEditMetaI_" type="number" value="' + (evt.metaIndiv||0) + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '<button onclick="_finSalvarEdicaoEvento(\'' + esc(evt.id) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar →</button>'
-    + '</div>';
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-}
-
-function _finDataParaInput(d) {
-  if (!d) return '';
-  var s = String(d).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-    var p = s.split('/'); return p[2]+'-'+p[1]+'-'+p[0];
-  }
-  try { var dt=new Date(s); if(!isNaN(dt.getTime())) return dt.toISOString().substring(0,10); } catch(e){}
-  return '';
-}
-
-function _finSalvarEdicaoEvento(eventoId) {
-  var nome = ($('_finEditNome_')||{}).value||'';
-  var data = ($('_finEditData_')||{}).value||'';
-  var meta = Number(($('_finEditMeta_')||{}).value||0);
-  var metaI = Number(($('_finEditMetaI_')||{}).value||0);
-  if (!nome.trim()) { mostrarToast('Nome não pode ser vazio.'); return; }
-  _finFecharOv();
-  callAPI('editEventoFinanceiro', {eventoId: eventoId, dados:{nome:nome.trim(),dataEvento:data,metaTotal:meta,metaIndiv:metaI}},
-    function() {
-      mostrarToast('Evento atualizado ✓');
-      _finAbrirEvento(eventoId);
-    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
-  );
-}
-
-// ── Modal editar meta individual (substituindo prompt) ────────
-function _finEditarMetaPartic(eventoId, nome, metaAtual) {
-  var ov = document.createElement('div');
-  ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:4px">✏️ Meta individual</div>'
-    + '<div style="font-size:12px;color:#888;margin-bottom:16px">' + esc(nome) + '</div>'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Nova meta (R$)</label>'
-    + '<input id="_finMetaIndv_" type="number" value="' + metaAtual + '" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '<button onclick="_finSalvarMetaIndv(\'' + esc(eventoId) + '\',\'' + esc(nome) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Salvar →</button>'
-    + '</div>';
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-}
-
-function _finSalvarMetaIndv(eventoId, nome) {
-  var nova = Number(($('_finMetaIndv_')||{}).value||0);
-  if (isNaN(nova) || nova < 0) { mostrarToast('Valor inválido.'); return; }
-  _finFecharOv();
-  callAPI('editParticipanteMeta', {eventoId:eventoId, nome:nome, novaMeta:nova},
-    function() { mostrarToast('Meta atualizada ✓'); _finAbrirEvento(eventoId); },
-    function(e) { mostrarToast('Erro: '+(e.message||e)); }
-  );
-}
-
-// ── Aba Caixa ─────────────────────────────────────────────────
-
-function _finRenderCaixaInline(eventoId) {
-  // Renderizar a aba caixa — já injeta no #app mantendo o header existente
-  callAPI('getCaixaEvento', {eventoId: eventoId}, function(r) {
-    var isAdmin = CTX && CTX.role === 'admin';
-    var html = '<div data-fin-list="1">'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">'
-      + _finMetaCard('R$ '+_finFmt(r.totalEntradas),'Entradas','#4ade80')
-      + _finMetaCard('R$ '+_finFmt(r.totalSaidas),'Saídas','#e55')
-      + _finMetaCard('R$ '+_finFmt(Math.abs(r.saldo)),'Saldo',r.saldo>=0?'#4ade80':'#e55')
-      + '</div>';
-
-    if (!r.lancamentos.length) {
-      html += '<div class="hint">Nenhum lançamento ainda.</div>';
-    } else {
-      r.lancamentos.forEach(function(l) {
-        var entrada = l.tipo === 'entrada';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#141414;border-radius:8px;padding:10px 12px;margin-bottom:6px">'
-          + '<div>'
-          + '<div style="font-size:13px;font-weight:600">' + esc(l.descricao) + '</div>'
-          + '<div style="font-size:10px;color:#666;margin-top:2px">'
-          + (l.categoria?'<span style="color:#FFC400;margin-right:6px">'+esc(l.categoria)+'</span>':'')
-          + esc(l.data) + '</div></div>'
-          + '<div style="display:flex;align-items:center;gap:8px">'
-          + '<span style="font-size:14px;font-weight:700;color:'+(entrada?'#4ade80':'#e55')+'">'
-          + (entrada?'+':'-') + ' R$ '+_finFmt(l.valor)+'</span>'
-          + (isAdmin?'<button onclick="_finConfirmDeleteLanc(\''+esc(l.id)+'\')" style="background:none;border:none;color:#e55;cursor:pointer;font-size:14px;padding:2px">✕</button>':'')
-          + '</div></div>';
-      });
-    }
-    html += '</div>';
-
-    // Injetar no app após o conteúdo já renderizado (sub-abas + admin buttons)
-    var existing = document.querySelector('[data-fin-list]');
-    if (existing) {
-      existing.outerHTML = html;
-    } else {
-      var app = $('app');
-      if (app) app.insertAdjacentHTML('beforeend', html);
-    }
-  }, function(e) { mostrarToast('Erro ao carregar caixa: '+(e.message||e)); });
-}
-
-function _finModalAddLancamento(eventoId) {
-  var r = _finState.eventoAtivo;
-  var eid = eventoId || (r && r.evento ? r.evento.id : null);
-  if (!eid) return;
-  var CATS = ['Doação','Campanha','Inscrição','Local','Transporte','Alimentação','Material','Outros'];
-  var ov = document.createElement('div');
-  ov.id = '_finOv_';
-  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
-  var card = document.createElement('div');
-  card.style.cssText = 'background:#141414;border:1px solid #333;border-radius:16px;padding:24px;max-width:360px;width:100%';
-  card.innerHTML = '<div style="font-size:16px;font-weight:700;margin-bottom:16px">+ Lançamento</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:14px">'
-    + '<button id="_finTipoE_" onclick="_finSelecionarTipo(this)" data-tipo="entrada" style="flex:1;background:#4ade80;color:#000;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">🟢 Entrada</button>'
-    + '<button id="_finTipoS_" onclick="_finSelecionarTipo(this)" data-tipo="saida" style="flex:1;background:#1a1a1a;color:#aaa;border:1px solid #333;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">🔴 Saída</button>'
-    + '</div>'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Descrição *</label>'
-    + '<input id="_finLancDesc_" placeholder="Ex: Doação família Silva" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Valor (R$) *</label>'
-    + '<input id="_finLancVal_" type="number" placeholder="500" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Data</label>'
-    + '<input id="_finLancData_" type="date" value="'+hoje()+'" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:10px">'
-    + '<label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Categoria</label>'
-    + '<select id="_finLancCat_" style="width:100%;background:#0a0a0a;border:1px solid #333;color:#fff;border-radius:8px;padding:10px;margin-bottom:16px">'
-    + '<option value="">Sem categoria</option>'
-    + CATS.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('')
-    + '</select>'
-    + '<div style="display:flex;gap:8px">'
-    + '<button onclick="_finFecharOv()" style="flex:1;background:#1a1a1a;border:1px solid #333;color:#888;border-radius:10px;padding:12px;cursor:pointer">Cancelar</button>'
-    + '<button onclick="_finSalvarLancamento(\'' + esc(eid) + '\')" style="flex:1;background:#FFC400;color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer">Adicionar →</button>'
-    + '</div>';
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-  window._finLancTipo = 'entrada';
-}
-
-function _finSelecionarTipo(btn) {
-  var tipo = btn ? (btn.dataset.tipo||'entrada') : 'entrada';
-  window._finLancTipo = tipo;
-  var be = document.getElementById('_finTipoE_');
-  var bs = document.getElementById('_finTipoS_');
-  if (be) { be.style.background = tipo==='entrada'?'#4ade80':'#1a1a1a'; be.style.color = tipo==='entrada'?'#000':'#aaa'; be.style.border = tipo==='entrada'?'none':'1px solid #333'; }
-  if (bs) { bs.style.background = tipo==='saida'?'#e55':'#1a1a1a'; bs.style.color = tipo==='saida'?'#fff':'#aaa'; bs.style.border = tipo==='saida'?'none':'1px solid #333'; }
-}
-
-function _finSalvarLancamento(eventoId) {
-  var desc = ($('_finLancDesc_')||{}).value||'';
-  var val = Number(($('_finLancVal_')||{}).value||0);
-  var data = ($('_finLancData_')||{}).value||hoje();
-  var cat = ($('_finLancCat_')||{}).value||'';
-  var tipo = window._finLancTipo||'entrada';
-  if (!desc.trim()) { mostrarToast('Informe a descrição.'); return; }
-  if (!val) { mostrarToast('Informe o valor.'); return; }
-  _finFecharOv();
-  callAPI('addLancamentoCaixa', {eventoId:eventoId, dados:{tipo:tipo,descricao:desc.trim(),valor:val,data:data,categoria:cat}},
-    function() {
-      mostrarToast('Lançamento adicionado ✓');
-      _finState.eventoTab = 'caixa';
-      _finAbrirEvento(eventoId);
-    }, function(e) { mostrarToast('Erro: '+(e.message||e)); }
-  );
-}
-
 function _finConfirmDeleteLanc(lancId) {
   var r = _finState.eventoAtivo;
   mostrarConfirm('Remover lançamento?', 'Essa ação não pode ser desfeita.',
@@ -3789,7 +4090,6 @@ function _finConfirmDeleteLanc(lancId) {
     }
   );
 }
-
 </script>
 </body>
 </html>
